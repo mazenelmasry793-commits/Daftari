@@ -10,10 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class ScratchpadScreen extends ConsumerWidget {
-  const ScratchpadScreen({
-    required this.onAdd,
-    super.key,
-  });
+  const ScratchpadScreen({required this.onAdd, super.key});
 
   final VoidCallback onAdd;
 
@@ -27,7 +24,8 @@ class ScratchpadScreen extends ConsumerWidget {
         AppPageRoute(
           child: EntryFormScreen(
             entry: entry,
-            initialType: type,
+            initialType: entry.type,
+            conversionType: type == EntryType.scratchpad ? null : type,
           ),
         ),
       );
@@ -41,7 +39,8 @@ class ScratchpadScreen extends ConsumerWidget {
           return EmptyState(
             icon: Icons.edit_document,
             title: 'Your scratchpad is empty',
-            message: 'Use it for quick notes, rough calculations, or unfinished debt ideas.',
+            message:
+                'Use it for quick notes, rough calculations, or unfinished debt ideas.',
             action: FilledButton.icon(
               onPressed: onAdd,
               icon: const Icon(Icons.add_rounded),
@@ -61,7 +60,9 @@ class ScratchpadScreen extends ConsumerWidget {
                   return EntryCard(
                     entry: entry,
                     onTap: () => Navigator.of(context).push(
-                      AppPageRoute(child: EntryDetailsScreen(entryId: entry.id)),
+                      AppPageRoute(
+                        child: EntryDetailsScreen(entryId: entry.id),
+                      ),
                     ),
                     trailing: PopupMenuButton<_Action>(
                       icon: const Icon(Icons.more_vert_rounded),
@@ -70,7 +71,9 @@ class ScratchpadScreen extends ConsumerWidget {
                           case _Action.details:
                             if (context.mounted) {
                               Navigator.of(context).push(
-                                AppPageRoute(child: EntryDetailsScreen(entryId: entry.id)),
+                                AppPageRoute(
+                                  child: EntryDetailsScreen(entryId: entry.id),
+                                ),
                               );
                             }
                             break;
@@ -87,7 +90,8 @@ class ScratchpadScreen extends ConsumerWidget {
                             final confirm = await showConfirmationDialog(
                               context,
                               title: 'Move to trash?',
-                              message: 'This note will be moved to Trash and can be restored later.',
+                              message:
+                                  'This note will be moved to Trash and can be restored later.',
                               confirmLabel: 'Move',
                               destructive: true,
                             );
@@ -98,11 +102,26 @@ class ScratchpadScreen extends ConsumerWidget {
                         }
                       },
                       itemBuilder: (context) => const [
-                        PopupMenuItem(value: _Action.details, child: Text('Open details')),
-                        PopupMenuItem(value: _Action.edit, child: Text('Edit note')),
-                        PopupMenuItem(value: _Action.convertToOwedToMe, child: Text('Convert to Owed To Me')),
-                        PopupMenuItem(value: _Action.convertToOwedByMe, child: Text('Convert to Owed By Me')),
-                        PopupMenuItem(value: _Action.delete, child: Text('Delete')),
+                        PopupMenuItem(
+                          value: _Action.details,
+                          child: Text('Open details'),
+                        ),
+                        PopupMenuItem(
+                          value: _Action.edit,
+                          child: Text('Edit note'),
+                        ),
+                        PopupMenuItem(
+                          value: _Action.convertToOwedToMe,
+                          child: Text('Convert to Owed To Me'),
+                        ),
+                        PopupMenuItem(
+                          value: _Action.convertToOwedByMe,
+                          child: Text('Convert to Owed By Me'),
+                        ),
+                        PopupMenuItem(
+                          value: _Action.delete,
+                          child: Text('Delete'),
+                        ),
                       ],
                     ),
                   );
@@ -117,4 +136,3 @@ class ScratchpadScreen extends ConsumerWidget {
 }
 
 enum _Action { details, edit, convertToOwedToMe, convertToOwedByMe, delete }
-

@@ -64,6 +64,9 @@ class Entry {
 
   DateTime? deletedAt;
 
+  @ignore
+  bool get isDeleted => deletedAt != null || status == EntryStatus.deleted;
+
   @Index()
   DateTime? debtDate;
 
@@ -79,11 +82,11 @@ class Entry {
 @embedded
 class Payment {
   Payment();
-  
+
   late double amount;
-  
+
   late DateTime date;
-  
+
   String? note;
 }
 
@@ -100,11 +103,15 @@ extension EntryJson on Entry {
       'updatedAt': updatedAt.toIso8601String(),
       'deletedAt': deletedAt?.toIso8601String(),
       'debtDate': debtDate?.toIso8601String(),
-      'payments': payments.map((p) => {
-        'amount': p.amount,
-        'date': p.date.toIso8601String(),
-        'note': p.note,
-      }).toList(),
+      'payments': payments
+          .map(
+            (p) => {
+              'amount': p.amount,
+              'date': p.date.toIso8601String(),
+              'note': p.note,
+            },
+          )
+          .toList(),
     };
   }
 }
@@ -119,19 +126,29 @@ Entry entryFromJson(Map<String, dynamic> json) {
     ..title = (json['title'] as String?)?.trim() ?? ''
     ..amount = (json['amount'] as num?)?.toDouble()
     ..note = json['note'] as String?
-    ..type = EntryType.fromDbValue((json['type'] as String?) ?? EntryType.owedToMe.dbValue)
-    ..status = EntryStatus.fromDbValue((json['status'] as String?) ?? EntryStatus.active.dbValue)
-    ..createdAt = DateTime.tryParse(json['createdAt'] as String? ?? '') ?? DateTime.now()
-    ..updatedAt = DateTime.tryParse(json['updatedAt'] as String? ?? '') ?? DateTime.now()
+    ..type = EntryType.fromDbValue(
+      (json['type'] as String?) ?? EntryType.owedToMe.dbValue,
+    )
+    ..status = EntryStatus.fromDbValue(
+      (json['status'] as String?) ?? EntryStatus.active.dbValue,
+    )
+    ..createdAt =
+        DateTime.tryParse(json['createdAt'] as String? ?? '') ?? DateTime.now()
+    ..updatedAt =
+        DateTime.tryParse(json['updatedAt'] as String? ?? '') ?? DateTime.now()
     ..deletedAt = DateTime.tryParse(json['deletedAt'] as String? ?? '')
     ..debtDate = DateTime.tryParse(json['debtDate'] as String? ?? '')
-    ..payments = (json['payments'] as List<dynamic>?)?.map((p) {
-      final pMap = p as Map<String, dynamic>;
-      return Payment()
-        ..amount = (pMap['amount'] as num).toDouble()
-        ..date = DateTime.tryParse(pMap['date'] as String? ?? '') ?? DateTime.now()
-        ..note = pMap['note'] as String?;
-    }).toList() ?? [];
+    ..payments =
+        (json['payments'] as List<dynamic>?)?.map((p) {
+          final pMap = p as Map<String, dynamic>;
+          return Payment()
+            ..amount = (pMap['amount'] as num).toDouble()
+            ..date =
+                DateTime.tryParse(pMap['date'] as String? ?? '') ??
+                DateTime.now()
+            ..note = pMap['note'] as String?;
+        }).toList() ??
+        [];
   if (entry.title.isEmpty) {
     entry.title = 'Untitled entry';
   }

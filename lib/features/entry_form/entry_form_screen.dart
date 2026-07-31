@@ -9,11 +9,13 @@ class EntryFormScreen extends ConsumerStatefulWidget {
   const EntryFormScreen({
     required this.initialType,
     this.entry,
+    this.conversionType,
     super.key,
   });
 
   final EntryType initialType;
   final Entry? entry;
+  final EntryType? conversionType;
 
   @override
   ConsumerState<EntryFormScreen> createState() => _EntryFormScreenState();
@@ -32,10 +34,12 @@ class _EntryFormScreenState extends ConsumerState<EntryFormScreen> {
   void initState() {
     super.initState();
     final entry = widget.entry;
-    _type = entry?.type ?? widget.initialType;
+    _type = widget.conversionType ?? entry?.type ?? widget.initialType;
     _debtDate = entry?.debtDate ?? DateTime.now();
     _titleController = TextEditingController(text: entry?.title ?? '');
-    _amountController = TextEditingController(text: entry?.amount?.toString() ?? '');
+    _amountController = TextEditingController(
+      text: entry?.amount?.toString() ?? '',
+    );
     _noteController = TextEditingController(text: entry?.note ?? '');
   }
 
@@ -65,23 +69,30 @@ class _EntryFormScreenState extends ConsumerState<EntryFormScreen> {
       final entry = Entry()
         ..id = existing?.id ?? Isar.autoIncrement
         ..title = _titleController.text.trim()
-        ..amount = _type == EntryType.scratchpad ? _parseAmount(_amountController.text) : _parseAmount(_amountController.text)!
-        ..note = _noteController.text.trim().isEmpty ? null : _noteController.text.trim()
+        ..amount = _type == EntryType.scratchpad
+            ? _parseAmount(_amountController.text)
+            : _parseAmount(_amountController.text)!
+        ..note = _noteController.text.trim().isEmpty
+            ? null
+            : _noteController.text.trim()
         ..type = _type
         ..debtDate = _debtDate
         ..status = existing?.status ?? EntryStatus.active
         ..createdAt = existing?.createdAt ?? now
         ..updatedAt = now
-        ..deletedAt = existing?.deletedAt;
+        ..deletedAt = existing?.deletedAt
+        ..payments = List<Payment>.from(
+          existing?.payments ?? const <Payment>[],
+        );
 
       final saved = await repository.save(entry);
       if (!mounted) return;
       Navigator.of(context).pop(saved);
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.toString())),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
     } finally {
       if (mounted) {
         setState(() => _saving = false);
@@ -105,7 +116,9 @@ class _EntryFormScreenState extends ConsumerState<EntryFormScreen> {
     final isScratchpad = _type == EntryType.scratchpad;
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.entry == null ? 'New $_typeString' : 'Edit $_typeString'),
+        title: Text(
+          widget.entry == null ? 'New $_typeString' : 'Edit $_typeString',
+        ),
       ),
       body: Form(
         key: _formKey,
@@ -129,11 +142,13 @@ class _EntryFormScreenState extends ConsumerState<EntryFormScreen> {
                   },
                 ),
                 const SizedBox(height: 14),
-              TextFormField(
-                controller: _amountController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: InputDecoration(
-                  labelText: isScratchpad ? 'Amount (optional)' : 'Amount',
+                TextFormField(
+                  controller: _amountController,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: InputDecoration(
+                    labelText: isScratchpad ? 'Amount (optional)' : 'Amount',
                     hintText: '0.00',
                   ),
                   validator: (value) {
@@ -143,6 +158,12 @@ class _EntryFormScreenState extends ConsumerState<EntryFormScreen> {
                     }
                     if (amount != null && amount <= 0) {
                       return 'Amount must be greater than zero.';
+                    }
+                    final paidAmount = widget.entry?.paidAmount ?? 0;
+                    if (!isScratchpad &&
+                        amount != null &&
+                        amount < paidAmount) {
+                      return 'Amount cannot be less than the paid amount.';
                     }
                     return null;
                   },
@@ -154,7 +175,8 @@ class _EntryFormScreenState extends ConsumerState<EntryFormScreen> {
                   minLines: 3,
                   decoration: const InputDecoration(
                     labelText: 'Note',
-                    hintText: 'Add a reminder, explanation, or rough calculation.',
+                    hintText:
+                        'Add a reminder, explanation, or rough calculation.',
                   ),
                 ),
                 const SizedBox(height: 14),
@@ -171,9 +193,7 @@ class _EntryFormScreenState extends ConsumerState<EntryFormScreen> {
                     }
                   },
                   child: InputDecorator(
-                    decoration: const InputDecoration(
-                      labelText: 'Date',
-                    ),
+                    decoration: const InputDecoration(labelText: 'Date'),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -196,7 +216,9 @@ class _EntryFormScreenState extends ConsumerState<EntryFormScreen> {
                     end: Alignment.topCenter,
                     colors: [
                       Theme.of(context).colorScheme.surface,
-                      Theme.of(context).colorScheme.surface.withValues(alpha: 0.0),
+                      Theme.of(
+                        context,
+                      ).colorScheme.surface.withValues(alpha: 0.0),
                     ],
                     stops: const [0.4, 1.0],
                   ),
@@ -208,7 +230,9 @@ class _EntryFormScreenState extends ConsumerState<EntryFormScreen> {
                       width: double.infinity,
                       child: FilledButton(
                         onPressed: _saving ? null : _save,
-                        child: Text(widget.entry == null ? 'Save' : 'Save Changes'),
+                        child: Text(
+                          widget.entry == null ? 'Save' : 'Save Changes',
+                        ),
                       ),
                     ),
                   ),

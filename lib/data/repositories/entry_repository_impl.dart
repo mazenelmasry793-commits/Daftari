@@ -13,11 +13,23 @@ class EntryRepositoryImpl implements EntryRepository {
   final Isar _isar;
 
   Future<void> _initMigration() async {
-    final nullDebtDates = await _isar.entries.filter().debtDateIsNull().findAll();
-    if (nullDebtDates.isNotEmpty) {
+    final nullDebtDates = await _isar.entries
+        .filter()
+        .debtDateIsNull()
+        .findAll();
+    final legacyDeleted = await _isar.entries
+        .filter()
+        .statusEqualTo(EntryStatus.deleted)
+        .deletedAtIsNull()
+        .findAll();
+    if (nullDebtDates.isNotEmpty || legacyDeleted.isNotEmpty) {
       await _isar.writeTxn(() async {
         for (final entry in nullDebtDates) {
           entry.debtDate = entry.createdAt;
+          await _isar.entries.put(entry);
+        }
+        for (final entry in legacyDeleted) {
+          entry.deletedAt = entry.updatedAt;
           await _isar.entries.put(entry);
         }
       });
@@ -31,10 +43,14 @@ class EntryRepositoryImpl implements EntryRepository {
         .deletedAtIsNull()
         .watch(fireImmediately: true)
         .map((entries) {
-      final sorted = entries.toList();
-      sorted.sort((a, b) => (b.debtDate ?? b.createdAt).compareTo(a.debtDate ?? a.createdAt));
-      return sorted.take(limit).toList();
-    });
+          final sorted = entries.toList();
+          sorted.sort(
+            (a, b) => (b.debtDate ?? b.createdAt).compareTo(
+              a.debtDate ?? a.createdAt,
+            ),
+          );
+          return sorted.take(limit).toList();
+        });
   }
 
   @override
@@ -46,10 +62,14 @@ class EntryRepositoryImpl implements EntryRepository {
         .typeEqualTo(type)
         .watch(fireImmediately: true)
         .map((entries) {
-      final sorted = entries.toList();
-      sorted.sort((a, b) => (b.debtDate ?? b.createdAt).compareTo(a.debtDate ?? a.createdAt));
-      return sorted;
-    });
+          final sorted = entries.toList();
+          sorted.sort(
+            (a, b) => (b.debtDate ?? b.createdAt).compareTo(
+              a.debtDate ?? a.createdAt,
+            ),
+          );
+          return sorted;
+        });
   }
 
   @override
@@ -68,10 +88,14 @@ class EntryRepositoryImpl implements EntryRepository {
         .deletedAtIsNull()
         .watch(fireImmediately: true)
         .map((entries) {
-      final sorted = entries.toList();
-      sorted.sort((a, b) => (b.debtDate ?? b.createdAt).compareTo(a.debtDate ?? a.createdAt));
-      return sorted;
-    });
+          final sorted = entries.toList();
+          sorted.sort(
+            (a, b) => (b.debtDate ?? b.createdAt).compareTo(
+              a.debtDate ?? a.createdAt,
+            ),
+          );
+          return sorted;
+        });
   }
 
   @override
@@ -83,10 +107,12 @@ class EntryRepositoryImpl implements EntryRepository {
     return _isar.entries
         .filter()
         .deletedAtIsNull()
-        .group((query) => query
-            .titleContains(term, caseSensitive: false)
-            .or()
-            .noteContains(term, caseSensitive: false))
+        .group(
+          (query) => query
+              .titleContains(term, caseSensitive: false)
+              .or()
+              .noteContains(term, caseSensitive: false),
+        )
         .sortByUpdatedAtDesc()
         .findAll();
   }
@@ -99,7 +125,10 @@ class EntryRepositoryImpl implements EntryRepository {
         .deletedAtIsNull()
         .typeEqualTo(EntryType.owedToMe)
         .findAll();
-    return items.fold<double>(0, (total, entry) => total + entry.remainingAmount);
+    return items.fold<double>(
+      0,
+      (total, entry) => total + entry.remainingAmount,
+    );
   }
 
   @override
@@ -110,7 +139,10 @@ class EntryRepositoryImpl implements EntryRepository {
         .deletedAtIsNull()
         .typeEqualTo(EntryType.owedByMe)
         .findAll();
-    return items.fold<double>(0, (total, entry) => total + entry.remainingAmount);
+    return items.fold<double>(
+      0,
+      (total, entry) => total + entry.remainingAmount,
+    );
   }
 
   @override
@@ -121,7 +153,9 @@ class EntryRepositoryImpl implements EntryRepository {
   @override
   Future<Entry> save(Entry entry) async {
     final now = DateTime.now();
-    final existing = entry.id != Isar.autoIncrement ? await getById(entry.id) : null;
+    final existing = entry.id != Isar.autoIncrement
+        ? await getById(entry.id)
+        : null;
     if (existing == null) {
       entry.createdAt = now;
       entry.updatedAt = now;
@@ -134,7 +168,8 @@ class EntryRepositoryImpl implements EntryRepository {
     if (entry.title.trim().isEmpty) {
       throw ArgumentError('Title is required.');
     }
-    if (entry.type != EntryType.scratchpad && (entry.amount == null || entry.amount! <= 0)) {
+    if (entry.type != EntryType.scratchpad &&
+        (entry.amount == null || entry.amount! <= 0)) {
       throw ArgumentError('Amount is required for debt entries.');
     }
     if (entry.type == EntryType.scratchpad) {
@@ -152,7 +187,7 @@ class EntryRepositoryImpl implements EntryRepository {
     if (entry == null) {
       return;
     }
-    
+
     // Auto-add payment for remaining amount
     if (entry.type != EntryType.scratchpad) {
       final remaining = entry.remainingAmount;
@@ -164,7 +199,7 @@ class EntryRepositoryImpl implements EntryRepository {
         entry.payments = List<Payment>.from(entry.payments)..add(payment);
       }
     }
-    
+
     entry.status = EntryStatus.completed;
     entry.updatedAt = DateTime.now();
     await _isar.writeTxn(() async {
@@ -240,19 +275,21 @@ class EntryRepositoryImpl implements EntryRepository {
   @override
   Future<ImportPreview> previewImport(String jsonString) async {
     final decoded = jsonDecode(jsonString);
-    final entries = (decoded is Map<String, dynamic> ? decoded['entries'] : null) as List<dynamic>?;
+    final entries =
+        (decoded is Map<String, dynamic> ? decoded['entries'] : null)
+            as List<dynamic>?;
     if (entries == null) {
       throw FormatException('Invalid backup file.');
     }
-    
+
     final imported = entries
         .whereType<Map<String, dynamic>>()
         .map(entryFromJson)
         .toList(growable: false);
-        
+
     int newEntries = 0;
     int conflictingEntries = 0;
-    
+
     for (final entry in imported) {
       if (entry.id != Isar.autoIncrement && await getById(entry.id) != null) {
         conflictingEntries++;
@@ -260,14 +297,22 @@ class EntryRepositoryImpl implements EntryRepository {
         newEntries++;
       }
     }
-    
-    return ImportPreview(newEntries: newEntries, conflictingEntries: conflictingEntries);
+
+    return ImportPreview(
+      newEntries: newEntries,
+      conflictingEntries: conflictingEntries,
+    );
   }
 
   @override
-  Future<ImportResult> importJson(String jsonString, {ImportStrategy strategy = ImportStrategy.skipExisting}) async {
+  Future<ImportResult> importJson(
+    String jsonString, {
+    ImportStrategy strategy = ImportStrategy.skipExisting,
+  }) async {
     final decoded = jsonDecode(jsonString);
-    final entries = (decoded is Map<String, dynamic> ? decoded['entries'] : null) as List<dynamic>?;
+    final entries =
+        (decoded is Map<String, dynamic> ? decoded['entries'] : null)
+            as List<dynamic>?;
     if (entries == null) {
       throw FormatException('Invalid backup file.');
     }
@@ -278,13 +323,13 @@ class EntryRepositoryImpl implements EntryRepository {
     if (imported.isEmpty) {
       return const ImportResult(inserted: 0, replaced: 0, skipped: 0);
     }
-    
+
     int inserted = 0;
     int replaced = 0;
     int skipped = 0;
-    
+
     final toSave = <Entry>[];
-    
+
     for (final entry in imported) {
       if (entry.id != Isar.autoIncrement) {
         final existing = await getById(entry.id);
@@ -301,14 +346,18 @@ class EntryRepositoryImpl implements EntryRepository {
       toSave.add(entry);
       inserted++;
     }
-    
+
     if (toSave.isNotEmpty) {
       await _isar.writeTxn(() async {
         await _isar.entries.putAll(toSave);
       });
     }
-    
-    return ImportResult(inserted: inserted, replaced: replaced, skipped: skipped);
+
+    return ImportResult(
+      inserted: inserted,
+      replaced: replaced,
+      skipped: skipped,
+    );
   }
 }
 

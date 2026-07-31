@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+// ignore: deprecated_member_use, avoid_web_libraries_in_flutter
 import 'dart:html' as html;
 
 import 'package:debt_tracker/core/constants/app_constants.dart';
@@ -35,9 +36,12 @@ class WebEntryRepository implements EntryRepository {
       return;
     }
 
+    var migratedLegacyDeleted = false;
     try {
       final decoded = jsonDecode(raw);
-      final entries = (decoded is Map<String, dynamic> ? decoded['entries'] : null) as List<dynamic>?;
+      final entries =
+          (decoded is Map<String, dynamic> ? decoded['entries'] : null)
+              as List<dynamic>?;
       if (entries != null) {
         _entries
           ..clear()
@@ -47,6 +51,11 @@ class WebEntryRepository implements EntryRepository {
                 .map((e) {
                   final entry = entryFromJson(e);
                   entry.debtDate ??= entry.createdAt;
+                  if (entry.status == EntryStatus.deleted &&
+                      entry.deletedAt == null) {
+                    entry.deletedAt = entry.updatedAt;
+                    migratedLegacyDeleted = true;
+                  }
                   return entry;
                 })
                 .toList(growable: false),
@@ -56,10 +65,16 @@ class WebEntryRepository implements EntryRepository {
       _entries.clear();
     }
     _syncNextId();
+    if (migratedLegacyDeleted) {
+      _persist();
+    }
   }
 
   void _syncNextId() {
-    final maxId = _entries.fold<int>(0, (maxValue, entry) => entry.id > maxValue ? entry.id : maxValue);
+    final maxId = _entries.fold<int>(
+      0,
+      (maxValue, entry) => entry.id > maxValue ? entry.id : maxValue,
+    );
     _nextId = maxId + 1;
   }
 
@@ -70,30 +85,46 @@ class WebEntryRepository implements EntryRepository {
       'exportedAt': DateTime.now().toIso8601String(),
       'entries': _entries.map((entry) => entry.toJson()).toList(),
     };
-    html.window.localStorage[_storageKey] = const JsonEncoder.withIndent('  ').convert(payload);
+    html.window.localStorage[_storageKey] = const JsonEncoder.withIndent(
+      '  ',
+    ).convert(payload);
     _changes.add(null);
   }
 
   Entry _cloneEntry(Entry entry) => entryFromJson(entry.toJson());
 
   List<Entry> _sortedVisibleEntries() {
-    final entries = _entries.where((entry) => entry.status != EntryStatus.deleted).map(_cloneEntry).toList();
-    entries.sort((a, b) => (b.debtDate ?? b.createdAt).compareTo(a.debtDate ?? a.createdAt));
+    final entries = _entries
+        .where((entry) => !entry.isDeleted)
+        .map(_cloneEntry)
+        .toList();
+    entries.sort(
+      (a, b) =>
+          (b.debtDate ?? b.createdAt).compareTo(a.debtDate ?? a.createdAt),
+    );
     return entries;
   }
 
   List<Entry> _sortedActiveByType(EntryType type) {
     final entries = _entries
-        .where((entry) => entry.status == EntryStatus.active && entry.type == type)
+        .where(
+          (entry) =>
+              !entry.isDeleted &&
+              entry.status == EntryStatus.active &&
+              entry.type == type,
+        )
         .map(_cloneEntry)
         .toList();
-    entries.sort((a, b) => (b.debtDate ?? b.createdAt).compareTo(a.debtDate ?? a.createdAt));
+    entries.sort(
+      (a, b) =>
+          (b.debtDate ?? b.createdAt).compareTo(a.debtDate ?? a.createdAt),
+    );
     return entries;
   }
 
   List<Entry> _sortedTrash() {
     final entries = _entries
-        .where((entry) => entry.status == EntryStatus.deleted)
+        .where((entry) => entry.isDeleted)
         .map(_cloneEntry)
         .toList();
     entries.sort((a, b) {
@@ -109,7 +140,10 @@ class WebEntryRepository implements EntryRepository {
         .where((entry) => entry.deletedAt == null)
         .map(_cloneEntry)
         .toList();
-    entries.sort((a, b) => (b.debtDate ?? b.createdAt).compareTo(a.debtDate ?? a.createdAt));
+    entries.sort(
+      (a, b) =>
+          (b.debtDate ?? b.createdAt).compareTo(a.debtDate ?? a.createdAt),
+    );
     return entries.take(limit).toList(growable: false);
   }
 
@@ -177,11 +211,15 @@ class WebEntryRepository implements EntryRepository {
     if (term.isEmpty) {
       return <Entry>[];
     }
-    final matches = _entries.where((entry) {
-      final title = entry.title.toLowerCase();
-      final note = entry.note?.toLowerCase() ?? '';
-      return entry.status != EntryStatus.deleted && (title.contains(term) || note.contains(term));
-    }).map(_cloneEntry).toList();
+    final matches = _entries
+        .where((entry) {
+          final title = entry.title.toLowerCase();
+          final note = entry.note?.toLowerCase() ?? '';
+          return !entry.isDeleted &&
+              (title.contains(term) || note.contains(term));
+        })
+        .map(_cloneEntry)
+        .toList();
     matches.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
     return matches;
   }
@@ -189,14 +227,24 @@ class WebEntryRepository implements EntryRepository {
   @override
   Future<double> totalOwedToMe() async {
     return _entries
-        .where((entry) => entry.status == EntryStatus.active && entry.type == EntryType.owedToMe)
+        .where(
+          (entry) =>
+              !entry.isDeleted &&
+              entry.status == EntryStatus.active &&
+              entry.type == EntryType.owedToMe,
+        )
         .fold<double>(0, (total, entry) => total + entry.remainingAmount);
   }
 
   @override
   Future<double> totalIOwe() async {
     return _entries
-        .where((entry) => entry.status == EntryStatus.active && entry.type == EntryType.owedByMe)
+        .where(
+          (entry) =>
+              !entry.isDeleted &&
+              entry.status == EntryStatus.active &&
+              entry.type == EntryType.owedByMe,
+        )
         .fold<double>(0, (total, entry) => total + entry.remainingAmount);
   }
 
@@ -215,7 +263,8 @@ class WebEntryRepository implements EntryRepository {
     if (record.title.trim().isEmpty) {
       throw ArgumentError('Title is required.');
     }
-    if (record.type != EntryType.scratchpad && (record.amount == null || record.amount! <= 0)) {
+    if (record.type != EntryType.scratchpad &&
+        (record.amount == null || record.amount! <= 0)) {
       throw ArgumentError('Amount is required for debt entries.');
     }
     if (record.type == EntryType.scratchpad) {
@@ -223,7 +272,9 @@ class WebEntryRepository implements EntryRepository {
     }
 
     if (existing == null) {
-      if (record.id <= 0 || record.id == Isar.autoIncrement || _findById(record.id) != null) {
+      if (record.id <= 0 ||
+          record.id == Isar.autoIncrement ||
+          _findById(record.id) != null) {
         record.id = _nextId++;
       } else {
         _nextId = record.id >= _nextId ? record.id + 1 : _nextId;
@@ -235,9 +286,7 @@ class WebEntryRepository implements EntryRepository {
       record.id = existing.id;
       record.createdAt = existing.createdAt;
       record.updatedAt = now;
-      if (record.status != EntryStatus.deleted) {
-        record.deletedAt = null;
-      }
+      record.deletedAt = existing.deletedAt;
       final index = _entries.indexWhere((item) => item.id == record.id);
       if (index != -1) {
         _entries[index] = record;
@@ -268,7 +317,6 @@ class WebEntryRepository implements EntryRepository {
     if (entry == null) {
       return;
     }
-    entry.status = EntryStatus.deleted;
     entry.deletedAt = DateTime.now();
     entry.updatedAt = DateTime.now();
     _persist();
@@ -280,7 +328,9 @@ class WebEntryRepository implements EntryRepository {
     if (entry == null) {
       return;
     }
-    entry.status = EntryStatus.active;
+    if (entry.status == EntryStatus.deleted) {
+      entry.status = EntryStatus.active;
+    }
     entry.deletedAt = null;
     entry.updatedAt = DateTime.now();
     _persist();
@@ -294,7 +344,7 @@ class WebEntryRepository implements EntryRepository {
 
   @override
   Future<void> emptyTrash() async {
-    _entries.removeWhere((entry) => entry.status == EntryStatus.deleted);
+    _entries.removeWhere((entry) => entry.isDeleted);
     _persist();
   }
 
@@ -318,19 +368,21 @@ class WebEntryRepository implements EntryRepository {
   @override
   Future<ImportPreview> previewImport(String jsonString) async {
     final decoded = jsonDecode(jsonString);
-    final entries = (decoded is Map<String, dynamic> ? decoded['entries'] : null) as List<dynamic>?;
+    final entries =
+        (decoded is Map<String, dynamic> ? decoded['entries'] : null)
+            as List<dynamic>?;
     if (entries == null) {
       throw FormatException('Invalid backup file.');
     }
-    
+
     final imported = entries
         .whereType<Map<String, dynamic>>()
         .map(entryFromJson)
         .toList(growable: false);
-        
+
     int newEntries = 0;
     int conflictingEntries = 0;
-    
+
     for (final entry in imported) {
       if (entry.id != Isar.autoIncrement && _findById(entry.id) != null) {
         conflictingEntries++;
@@ -338,30 +390,41 @@ class WebEntryRepository implements EntryRepository {
         newEntries++;
       }
     }
-    
-    return ImportPreview(newEntries: newEntries, conflictingEntries: conflictingEntries);
+
+    return ImportPreview(
+      newEntries: newEntries,
+      conflictingEntries: conflictingEntries,
+    );
   }
 
   @override
-  Future<ImportResult> importJson(String jsonString, {ImportStrategy strategy = ImportStrategy.skipExisting}) async {
+  Future<ImportResult> importJson(
+    String jsonString, {
+    ImportStrategy strategy = ImportStrategy.skipExisting,
+  }) async {
     final decoded = jsonDecode(jsonString);
-    final entries = (decoded is Map<String, dynamic> ? decoded['entries'] : null) as List<dynamic>?;
+    final entries =
+        (decoded is Map<String, dynamic> ? decoded['entries'] : null)
+            as List<dynamic>?;
     if (entries == null) {
       throw FormatException('Invalid backup file.');
     }
 
-    final imported = entries.whereType<Map<String, dynamic>>().map(entryFromJson).toList(growable: false);
+    final imported = entries
+        .whereType<Map<String, dynamic>>()
+        .map(entryFromJson)
+        .toList(growable: false);
     if (imported.isEmpty) {
       return const ImportResult(inserted: 0, replaced: 0, skipped: 0);
     }
-    
+
     int inserted = 0;
     int replaced = 0;
     int skipped = 0;
 
     for (final incoming in imported) {
       final index = _entries.indexWhere((entry) => entry.id == incoming.id);
-      
+
       if (index != -1) {
         if (strategy == ImportStrategy.replaceExisting) {
           _entries[index] = incoming;
@@ -371,18 +434,22 @@ class WebEntryRepository implements EntryRepository {
         }
         continue;
       }
-      
+
       if (incoming.id <= 0 || incoming.id == Isar.autoIncrement) {
         incoming.id = _nextId++;
       } else {
         _nextId = incoming.id >= _nextId ? incoming.id + 1 : _nextId;
       }
-      
+
       _entries.add(incoming);
       inserted++;
     }
 
     _persist();
-    return ImportResult(inserted: inserted, replaced: replaced, skipped: skipped);
+    return ImportResult(
+      inserted: inserted,
+      replaced: replaced,
+      skipped: skipped,
+    );
   }
 }

@@ -1,6 +1,5 @@
 import 'package:debt_tracker/core/utils/formatters.dart';
 import 'package:debt_tracker/core/widgets/empty_state.dart';
-import 'package:debt_tracker/data/models/entry.dart';
 import 'package:debt_tracker/features/entry_details/entry_details_screen.dart';
 import 'package:debt_tracker/presentation/providers/app_providers.dart';
 import 'package:debt_tracker/presentation/widgets/entry_card.dart';
@@ -28,15 +27,7 @@ class DashboardScreen extends ConsumerWidget {
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (error, _) => Center(child: Text(error.toString())),
       data: (entries) {
-        final activeEntries = entries
-            .where((entry) => entry.status == EntryStatus.active)
-            .toList();
-        final owedToMe = activeEntries
-            .where((entry) => entry.type == EntryType.owedToMe)
-            .fold<double>(0, (total, entry) => total + (entry.amount ?? 0));
-        final iOwe = activeEntries
-            .where((entry) => entry.type == EntryType.owedByMe)
-            .fold<double>(0, (total, entry) => total + (entry.amount ?? 0));
+        final totals = calculateDashboardTotals(entries);
         final recent = entries.take(6).toList();
 
         return CustomScrollView(
@@ -53,13 +44,13 @@ class DashboardScreen extends ConsumerWidget {
                 delegate: SliverChildListDelegate([
                   _SummaryCard(
                     title: 'Total Money Owed To Me',
-                    amount: AppFormatters.money.format(owedToMe),
+                    amount: AppFormatters.money.format(totals.owedToMe),
                     color: const Color(0xFF1976D2),
                     icon: Icons.trending_up_rounded,
                   ),
                   _SummaryCard(
                     title: 'Total Money I Owe',
-                    amount: AppFormatters.money.format(iOwe),
+                    amount: AppFormatters.money.format(totals.iOwe),
                     color: const Color(0xFFF57C00),
                     icon: Icons.trending_down_rounded,
                   ),
@@ -139,7 +130,7 @@ class _SummaryCard extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [color.withOpacity(0.7), color],
+          colors: [color.withValues(alpha: 0.7), color],
         ),
       ),
       child: Padding(

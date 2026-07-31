@@ -20,6 +20,38 @@ class AppBootstrap {
   final SecurityRepository securityRepository;
 }
 
+class DashboardTotals {
+  const DashboardTotals({required this.owedToMe, required this.iOwe});
+
+  final double owedToMe;
+  final double iOwe;
+}
+
+DashboardTotals calculateDashboardTotals(Iterable<Entry> entries) {
+  var owedToMe = 0.0;
+  var iOwe = 0.0;
+
+  for (final entry in entries) {
+    if (entry.status != EntryStatus.active || entry.deletedAt != null) {
+      continue;
+    }
+
+    final remaining = entry.remainingAmount > 0 ? entry.remainingAmount : 0.0;
+    switch (entry.type) {
+      case EntryType.owedToMe:
+        owedToMe += remaining;
+        break;
+      case EntryType.owedByMe:
+        iOwe += remaining;
+        break;
+      case EntryType.scratchpad:
+        break;
+    }
+  }
+
+  return DashboardTotals(owedToMe: owedToMe, iOwe: iOwe);
+}
+
 final appBootstrapProvider = FutureProvider<AppBootstrap>((ref) async {
   final Isar? isar = kIsWeb ? null : await AppDatabase.open();
   final entryRepository = createEntryRepository(isar: isar);
@@ -52,15 +84,21 @@ final dashboardIOweTotalProvider = FutureProvider<double>((ref) {
 });
 
 final owedToMeEntriesProvider = StreamProvider<List<Entry>>((ref) {
-  return ref.watch(entryRepositoryProvider).watchActiveByType(EntryType.owedToMe);
+  return ref
+      .watch(entryRepositoryProvider)
+      .watchActiveByType(EntryType.owedToMe);
 });
 
 final owedByMeEntriesProvider = StreamProvider<List<Entry>>((ref) {
-  return ref.watch(entryRepositoryProvider).watchActiveByType(EntryType.owedByMe);
+  return ref
+      .watch(entryRepositoryProvider)
+      .watchActiveByType(EntryType.owedByMe);
 });
 
 final scratchpadEntriesProvider = StreamProvider<List<Entry>>((ref) {
-  return ref.watch(entryRepositoryProvider).watchActiveByType(EntryType.scratchpad);
+  return ref
+      .watch(entryRepositoryProvider)
+      .watchActiveByType(EntryType.scratchpad);
 });
 
 final trashEntriesProvider = StreamProvider<List<Entry>>((ref) {

@@ -10,10 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class EntryDetailsScreen extends ConsumerStatefulWidget {
-  const EntryDetailsScreen({
-    required this.entryId,
-    super.key,
-  });
+  const EntryDetailsScreen({required this.entryId, super.key});
 
   final int entryId;
 
@@ -43,10 +40,7 @@ class _EntryDetailsScreenState extends ConsumerState<EntryDetailsScreen> {
   Future<void> _edit(Entry entry) async {
     final result = await Navigator.of(context).push<Entry?>(
       AppPageRoute(
-        child: EntryFormScreen(
-          entry: entry,
-          initialType: entry.type,
-        ),
+        child: EntryFormScreen(entry: entry, initialType: entry.type),
       ),
     );
     if (result != null) {
@@ -73,21 +67,21 @@ class _EntryDetailsScreenState extends ConsumerState<EntryDetailsScreen> {
 
   Future<void> _restore(Entry entry) async {
     await ref.read(entryRepositoryProvider).restore(entry.id);
-    _refresh();
+    if (mounted) Navigator.of(context).pop();
   }
 
   Future<void> _delete(Entry entry) async {
     final confirm = await showConfirmationDialog(
       context,
-      title: entry.status == EntryStatus.deleted ? 'Delete forever?' : 'Move to trash?',
-      message: entry.status == EntryStatus.deleted
+      title: entry.isDeleted ? 'Delete forever?' : 'Move to trash?',
+      message: entry.isDeleted
           ? 'This permanently deletes the entry from the database.'
           : 'The entry will move to Trash and can be restored later.',
-      confirmLabel: entry.status == EntryStatus.deleted ? 'Delete Forever' : 'Move to Trash',
+      confirmLabel: entry.isDeleted ? 'Delete Forever' : 'Move to Trash',
       destructive: true,
     );
     if (!confirm) return;
-    if (entry.status == EntryStatus.deleted) {
+    if (entry.isDeleted) {
       await ref.read(entryRepositoryProvider).permanentlyDelete(entry.id);
       if (mounted) Navigator.of(context).pop();
     } else {
@@ -105,11 +99,11 @@ class _EntryDetailsScreenState extends ConsumerState<EntryDetailsScreen> {
 
     entry.payments = List.from(entry.payments)..add(payment);
     entry.updatedAt = DateTime.now();
-    
+
     if (entry.type != EntryType.scratchpad && entry.remainingAmount <= 0) {
       entry.status = EntryStatus.completed;
     }
-    
+
     await ref.read(entryRepositoryProvider).save(entry);
     _refresh();
   }
@@ -126,11 +120,13 @@ class _EntryDetailsScreenState extends ConsumerState<EntryDetailsScreen> {
 
     entry.payments = List.from(entry.payments)..remove(payment);
     entry.updatedAt = DateTime.now();
-    
-    if (entry.type != EntryType.scratchpad && entry.remainingAmount > 0 && entry.status == EntryStatus.completed) {
+
+    if (entry.type != EntryType.scratchpad &&
+        entry.remainingAmount > 0 &&
+        entry.status == EntryStatus.completed) {
       entry.status = EntryStatus.active;
     }
-    
+
     await ref.read(entryRepositoryProvider).save(entry);
     _refresh();
   }
@@ -162,7 +158,7 @@ class _EntryDetailsScreenState extends ConsumerState<EntryDetailsScreen> {
           final original = entry.amount ?? 0.0;
           final paid = entry.paidAmount;
           final remaining = entry.remainingAmount;
-          
+
           double progress = 0;
           if (original > 0) {
             progress = paid / original;
@@ -171,6 +167,7 @@ class _EntryDetailsScreenState extends ConsumerState<EntryDetailsScreen> {
           }
 
           final bool isScratchpad = entry.type == EntryType.scratchpad;
+          final bool isDeleted = entry.isDeleted;
 
           return Stack(
             children: [
@@ -179,26 +176,51 @@ class _EntryDetailsScreenState extends ConsumerState<EntryDetailsScreen> {
                 children: [
                   Text(
                     entry.title,
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w900),
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
                   const SizedBox(height: 24),
-                  
+
                   if (!isScratchpad) ...[
                     Row(
                       children: [
-                        Expanded(child: _AmountCard(label: 'Original', amount: original, color: Colors.white)),
+                        Expanded(
+                          child: _AmountCard(
+                            label: 'Original',
+                            amount: original,
+                            color: Colors.white,
+                          ),
+                        ),
                         const SizedBox(width: 8),
-                        Expanded(child: _AmountCard(label: 'Paid', amount: paid, color: Colors.green)),
+                        Expanded(
+                          child: _AmountCard(
+                            label: 'Paid',
+                            amount: paid,
+                            color: Colors.green,
+                          ),
+                        ),
                         const SizedBox(width: 8),
-                        Expanded(child: _AmountCard(label: 'Remaining', amount: remaining, color: Colors.blue)),
+                        Expanded(
+                          child: _AmountCard(
+                            label: 'Remaining',
+                            amount: remaining,
+                            color: Colors.blue,
+                          ),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 16),
-                    
+
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                       decoration: BoxDecoration(
-                        color: scheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                        color: scheme.surfaceContainerHighest.withValues(
+                          alpha: 0.3,
+                        ),
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Column(
@@ -206,8 +228,20 @@ class _EntryDetailsScreenState extends ConsumerState<EntryDetailsScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text('Paid', style: TextStyle(color: scheme.onSurfaceVariant, fontWeight: FontWeight.w600)),
-                              Text('${(progress * 100).toStringAsFixed(0)}%', style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.w800)),
+                              Text(
+                                'Paid',
+                                style: TextStyle(
+                                  color: scheme.onSurfaceVariant,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              Text(
+                                '${(progress * 100).toStringAsFixed(0)}%',
+                                style: const TextStyle(
+                                  color: Colors.blue,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
                             ],
                           ),
                           const SizedBox(height: 12),
@@ -223,18 +257,22 @@ class _EntryDetailsScreenState extends ConsumerState<EntryDetailsScreen> {
                     ),
                     const SizedBox(height: 24),
                   ],
-                  
+
                   Text(
                     'Date: ${AppFormatters.date.format(entry.debtDate ?? entry.createdAt)}',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   if (entry.note?.isNotEmpty == true)
                     Text(
                       'Note: ${entry.note}',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  
+
                   if (!isScratchpad) ...[
                     const SizedBox(height: 32),
                     Row(
@@ -242,12 +280,14 @@ class _EntryDetailsScreenState extends ConsumerState<EntryDetailsScreen> {
                       children: [
                         Text(
                           'Payments',
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(fontWeight: FontWeight.w800),
                         ),
-                        IconButton.filledTonal(
-                          onPressed: () => _addPayment(entry),
-                          icon: const Icon(Icons.add_rounded),
-                        ),
+                        if (!isDeleted)
+                          IconButton.filledTonal(
+                            onPressed: () => _addPayment(entry),
+                            icon: const Icon(Icons.add_rounded),
+                          ),
                       ],
                     ),
                     const SizedBox(height: 16),
@@ -255,25 +295,41 @@ class _EntryDetailsScreenState extends ConsumerState<EntryDetailsScreen> {
                       Center(
                         child: Padding(
                           padding: const EdgeInsets.all(32),
-                          child: Text('No data yet', style: TextStyle(color: scheme.onSurfaceVariant)),
+                          child: Text(
+                            'No data yet',
+                            style: TextStyle(color: scheme.onSurfaceVariant),
+                          ),
                         ),
                       )
                     else
-                      ...entry.payments.map((p) => ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: Text(AppFormatters.moneyValue(p.amount), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(AppFormatters.dateTime.format(p.date)),
-                            if (p.note?.isNotEmpty == true) Text(p.note!),
-                          ],
+                      ...entry.payments.map(
+                        (p) => ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(
+                            AppFormatters.moneyValue(p.amount),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.green,
+                            ),
+                          ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(AppFormatters.dateTime.format(p.date)),
+                              if (p.note?.isNotEmpty == true) Text(p.note!),
+                            ],
+                          ),
+                          trailing: IconButton(
+                            icon: Icon(
+                              Icons.delete_outline,
+                              color: scheme.error,
+                            ),
+                            onPressed: isDeleted
+                                ? null
+                                : () => _deletePayment(entry, p),
+                          ),
                         ),
-                        trailing: IconButton(
-                          icon: Icon(Icons.delete_outline, color: scheme.error),
-                          onPressed: () => _deletePayment(entry, p),
-                        ),
-                      )),
+                      ),
                   ],
                 ],
               ),
@@ -288,7 +344,9 @@ class _EntryDetailsScreenState extends ConsumerState<EntryDetailsScreen> {
                       end: Alignment.topCenter,
                       colors: [
                         Theme.of(context).colorScheme.surface,
-                        Theme.of(context).colorScheme.surface.withValues(alpha: 0.0),
+                        Theme.of(
+                          context,
+                        ).colorScheme.surface.withValues(alpha: 0.0),
                       ],
                       stops: const [0.6, 1.0],
                     ),
@@ -301,28 +359,37 @@ class _EntryDetailsScreenState extends ConsumerState<EntryDetailsScreen> {
                         spacing: 12,
                         runSpacing: 12,
                         children: [
-                          if (entry.status != EntryStatus.deleted)
+                          if (!isDeleted)
                             FilledButton.icon(
                               onPressed: () => _edit(entry),
                               icon: const Icon(Icons.edit_rounded),
                               label: const Text('Edit'),
                             ),
-                          if (entry.status == EntryStatus.active && entry.type != EntryType.scratchpad)
+                          if (!isDeleted &&
+                              entry.status == EntryStatus.active &&
+                              entry.type != EntryType.scratchpad)
                             FilledButton.tonalIcon(
                               onPressed: () => _markCompleted(entry),
-                              icon: const Icon(Icons.check_circle_outline_rounded),
+                              icon: const Icon(
+                                Icons.check_circle_outline_rounded,
+                              ),
                               label: const Text('Mark Completed'),
                             ),
-                          if (entry.status == EntryStatus.deleted)
+                          if (isDeleted)
                             FilledButton.tonalIcon(
                               onPressed: () => _restore(entry),
                               icon: const Icon(Icons.restore_rounded),
                               label: const Text('Restore'),
                             ),
                           FilledButton(
-                            style: FilledButton.styleFrom(backgroundColor: scheme.error, foregroundColor: scheme.onError),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: scheme.error,
+                              foregroundColor: scheme.onError,
+                            ),
                             onPressed: () => _delete(entry),
-                            child: Text(entry.status == EntryStatus.deleted ? 'Delete Forever' : 'Delete'),
+                            child: Text(
+                              isDeleted ? 'Delete Forever' : 'Delete',
+                            ),
                           ),
                         ],
                       ),
@@ -363,9 +430,9 @@ class _AmountCard extends StatelessWidget {
           Text(
             label,
             style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: scheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w700,
-                ),
+              color: scheme.onSurfaceVariant,
+              fontWeight: FontWeight.w700,
+            ),
           ),
           const SizedBox(height: 8),
           FittedBox(
@@ -373,9 +440,9 @@ class _AmountCard extends StatelessWidget {
             child: Text(
               AppFormatters.moneyValue(amount),
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: color,
-                    fontWeight: FontWeight.w900,
-                  ),
+                color: color,
+                fontWeight: FontWeight.w900,
+              ),
             ),
           ),
         ],
@@ -383,4 +450,3 @@ class _AmountCard extends StatelessWidget {
     );
   }
 }
-
