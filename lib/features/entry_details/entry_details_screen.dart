@@ -49,19 +49,7 @@ class _EntryDetailsScreenState extends ConsumerState<EntryDetailsScreen> {
   }
 
   Future<void> _markCompleted(Entry entry) async {
-    if (entry.type != EntryType.scratchpad) {
-      final remaining = entry.remainingAmount;
-      if (remaining > 0) {
-        final payment = Payment()
-          ..amount = remaining
-          ..date = DateTime.now()
-          ..note = 'Auto-filled on completion';
-        entry.payments = List<Payment>.from(entry.payments)..add(payment);
-      }
-    }
-    entry.status = EntryStatus.completed;
-    entry.updatedAt = DateTime.now();
-    await ref.read(entryRepositoryProvider).save(entry);
+    await ref.read(entryRepositoryProvider).markCompleted(entry.id);
     _refresh();
   }
 

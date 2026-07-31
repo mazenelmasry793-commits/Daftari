@@ -4,7 +4,6 @@ import 'package:debt_tracker/data/models/entry.dart';
 import 'package:debt_tracker/data/repositories/entry_repository_factory.dart';
 import 'package:debt_tracker/domain/repositories/entry_repository.dart';
 import 'package:debt_tracker/domain/repositories/security_repository.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:isar_community/isar.dart';
 
@@ -15,7 +14,7 @@ class AppBootstrap {
     required this.securityRepository,
   });
 
-  final Isar? isar;
+  final Isar isar;
   final EntryRepository entryRepository;
   final SecurityRepository securityRepository;
 }
@@ -53,7 +52,7 @@ DashboardTotals calculateDashboardTotals(Iterable<Entry> entries) {
 }
 
 final appBootstrapProvider = FutureProvider<AppBootstrap>((ref) async {
-  final Isar? isar = kIsWeb ? null : await AppDatabase.open();
+  final isar = await AppDatabase.open();
   final entryRepository = createEntryRepository(isar: isar);
   final securityRepository = PinStorage();
   return AppBootstrap(

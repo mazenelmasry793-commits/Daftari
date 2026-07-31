@@ -184,24 +184,9 @@ class EntryRepositoryImpl implements EntryRepository {
   @override
   Future<void> markCompleted(int id) async {
     final entry = await getById(id);
-    if (entry == null) {
+    if (entry == null || !entry.markCompleted(completedAt: DateTime.now())) {
       return;
     }
-
-    // Auto-add payment for remaining amount
-    if (entry.type != EntryType.scratchpad) {
-      final remaining = entry.remainingAmount;
-      if (remaining > 0) {
-        final payment = Payment()
-          ..amount = remaining
-          ..date = DateTime.now()
-          ..note = 'Auto-filled on completion';
-        entry.payments = List<Payment>.from(entry.payments)..add(payment);
-      }
-    }
-
-    entry.status = EntryStatus.completed;
-    entry.updatedAt = DateTime.now();
     await _isar.writeTxn(() async {
       await _isar.entries.put(entry);
     });
@@ -361,9 +346,6 @@ class EntryRepositoryImpl implements EntryRepository {
   }
 }
 
-EntryRepository createEntryRepository({Isar? isar}) {
-  if (isar == null) {
-    throw ArgumentError('Isar instance is required on native platforms.');
-  }
+EntryRepository createEntryRepository({required Isar isar}) {
   return EntryRepositoryImpl(isar);
 }

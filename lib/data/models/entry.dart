@@ -77,6 +77,26 @@ class Entry {
 
   @ignore
   double get remainingAmount => (amount ?? 0) - paidAmount;
+
+  bool markCompleted({required DateTime completedAt}) {
+    if (isDeleted ||
+        type == EntryType.scratchpad ||
+        status == EntryStatus.completed) {
+      return false;
+    }
+
+    final remaining = remainingAmount;
+    if (remaining > 0) {
+      final payment = Payment()
+        ..amount = remaining
+        ..date = completedAt
+        ..note = 'Auto-filled on completion';
+      payments = List<Payment>.from(payments)..add(payment);
+    }
+    status = EntryStatus.completed;
+    updatedAt = completedAt;
+    return true;
+  }
 }
 
 @embedded
