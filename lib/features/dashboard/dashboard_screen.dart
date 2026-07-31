@@ -28,7 +28,9 @@ class DashboardScreen extends ConsumerWidget {
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (error, _) => Center(child: Text(error.toString())),
       data: (entries) {
-        final activeEntries = entries.where((entry) => entry.status == EntryStatus.active).toList();
+        final activeEntries = entries
+            .where((entry) => entry.status == EntryStatus.active)
+            .toList();
         final owedToMe = activeEntries
             .where((entry) => entry.type == EntryType.owedToMe)
             .fold<double>(0, (total, entry) => total + (entry.amount ?? 0));
@@ -46,24 +48,22 @@ class DashboardScreen extends ConsumerWidget {
                   crossAxisCount: 2,
                   mainAxisSpacing: 12,
                   crossAxisSpacing: 12,
-                  childAspectRatio: 1.15,
+                  childAspectRatio: 1,
                 ),
-                delegate: SliverChildListDelegate(
-                  [
-                    _SummaryCard(
-                      title: 'Total Money Owed To Me',
-                      amount: AppFormatters.money.format(owedToMe),
-                      color: const Color(0xFF1976D2),
-                      icon: Icons.trending_up_rounded,
-                    ),
-                    _SummaryCard(
-                      title: 'Total Money I Owe',
-                      amount: AppFormatters.money.format(iOwe),
-                      color: const Color(0xFFF57C00),
-                      icon: Icons.trending_down_rounded,
-                    ),
-                  ],
-                ),
+                delegate: SliverChildListDelegate([
+                  _SummaryCard(
+                    title: 'Total Money Owed To Me',
+                    amount: AppFormatters.money.format(owedToMe),
+                    color: const Color(0xFF1976D2),
+                    icon: Icons.trending_up_rounded,
+                  ),
+                  _SummaryCard(
+                    title: 'Total Money I Owe',
+                    amount: AppFormatters.money.format(iOwe),
+                    color: const Color(0xFFF57C00),
+                    icon: Icons.trending_down_rounded,
+                  ),
+                ]),
               ),
             ),
 
@@ -74,7 +74,9 @@ class DashboardScreen extends ConsumerWidget {
                   title: 'Recent Entries',
                   action: Text(
                     '${recent.length} items',
-                    style: Theme.of(context).textTheme.labelLarge?.copyWith(color: scheme.onSurfaceVariant),
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
                   ),
                 ),
               ),
@@ -85,7 +87,8 @@ class DashboardScreen extends ConsumerWidget {
                 child: EmptyState(
                   icon: Icons.account_balance_wallet_outlined,
                   title: 'No recent entries yet',
-                  message: 'Your new debts and scratchpad notes will appear here.',
+                  message:
+                      'Your new debts and scratchpad notes will appear here.',
                 ),
               )
             else
@@ -100,7 +103,9 @@ class DashboardScreen extends ConsumerWidget {
                       entry: entry,
                       compact: true,
                       onTap: () => Navigator.of(context).push(
-                        AppPageRoute(child: EntryDetailsScreen(entryId: entry.id)),
+                        AppPageRoute(
+                          child: EntryDetailsScreen(entryId: entry.id),
+                        ),
                       ),
                     );
                   },
@@ -134,10 +139,7 @@ class _SummaryCard extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            color.withOpacity(0.7),
-            color,
-          ],
+          colors: [color.withOpacity(0.7), color],
         ),
       ),
       child: Padding(
@@ -166,9 +168,9 @@ class _SummaryCard extends StatelessWidget {
                 Text(
                   title,
                   style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: Colors.white.withValues(alpha: 0.9),
-                        fontWeight: FontWeight.w600,
-                      ),
+                    color: Colors.white.withValues(alpha: 0.9),
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 FittedBox(
@@ -177,9 +179,9 @@ class _SummaryCard extends StatelessWidget {
                   child: Text(
                     amount,
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.w900,
-                          color: Colors.white,
-                        ),
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ],

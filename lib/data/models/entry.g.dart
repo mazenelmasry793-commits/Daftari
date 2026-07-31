@@ -15,7 +15,7 @@ extension GetEntryCollection on Isar {
 
 const EntrySchema = CollectionSchema(
   name: r'Entry',
-  id: 744406108402872,
+  id: 744406108402872943,
   properties: {
     r'amount': PropertySchema(id: 0, name: r'amount', type: IsarType.double),
     r'createdAt': PropertySchema(
@@ -68,7 +68,7 @@ const EntrySchema = CollectionSchema(
   idName: r'id',
   indexes: {
     r'debtDate': IndexSchema(
-      id: 676813400547721,
+      id: 6768134005477216385,
       name: r'debtDate',
       unique: false,
       replace: false,
@@ -1916,7 +1916,7 @@ extension EntryQueryProperty on QueryBuilder<Entry, Entry, QQueryProperty> {
 
 const PaymentSchema = Schema(
   name: r'Payment',
-  id: -65337007440425,
+  id: -6533700744042574122,
   properties: {
     r'amount': PropertySchema(id: 0, name: r'amount', type: IsarType.double),
     r'date': PropertySchema(id: 1, name: r'date', type: IsarType.dateTime),
