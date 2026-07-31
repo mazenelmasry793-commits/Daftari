@@ -35,11 +35,9 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
   flutter_riverpod: ^2.6.1
-  flutter_secure_storage: ^10.3.1
   intl: ^0.20.3
   path_provider: ^2.1.6
   file_picker: ^3.0.4
-  crypto: ^3.0.7
   isar_community: ^3.3.2
   isar_community_flutter_libs: ^3.3.2
   google_fonts: ^8.2.0

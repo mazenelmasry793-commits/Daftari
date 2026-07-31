@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:debt_tracker/core/platform/native_sheets_channel.dart';
 import 'package:debt_tracker/core/utils/formatters.dart';
 import 'package:debt_tracker/data/models/entry.dart';
 import 'package:debt_tracker/presentation/providers/app_providers.dart';
@@ -119,6 +122,10 @@ class _EntryFormScreenState extends ConsumerState<EntryFormScreen> {
         title: Text(
           widget.entry == null ? 'New $_typeString' : 'Edit $_typeString',
         ),
+        leading: IconButton(
+          icon: const Icon(Icons.close_rounded),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
       ),
       body: Form(
         key: _formKey,
@@ -182,14 +189,25 @@ class _EntryFormScreenState extends ConsumerState<EntryFormScreen> {
                 const SizedBox(height: 14),
                 InkWell(
                   onTap: () async {
-                    final date = await showDatePicker(
-                      context: context,
-                      initialDate: _debtDate,
-                      firstDate: DateTime(2000),
-                      lastDate: DateTime(2100),
-                    );
-                    if (date != null) {
-                      setState(() => _debtDate = date);
+                    if (Platform.isIOS) {
+                      final date = await nativeSheetsChannel.showNativeDatePicker(
+                        initialDate: _debtDate,
+                        firstDate: DateTime(2000),
+                        lastDate: DateTime(2100),
+                      );
+                      if (date != null) {
+                        setState(() => _debtDate = date);
+                      }
+                    } else {
+                      final date = await showDatePicker(
+                        context: context,
+                        initialDate: _debtDate,
+                        firstDate: DateTime(2000),
+                        lastDate: DateTime(2100),
+                      );
+                      if (date != null) {
+                        setState(() => _debtDate = date);
+                      }
                     }
                   },
                   child: InputDecorator(

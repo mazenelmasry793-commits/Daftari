@@ -1,6 +1,6 @@
 import 'package:debt_tracker/core/constants/app_constants.dart';
+import 'package:debt_tracker/core/platform/ios_navigation_channel.dart';
 import 'package:debt_tracker/core/theme/app_theme.dart';
-import 'package:debt_tracker/features/lock/lock_gate.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -22,11 +22,11 @@ class DebtTrackerApp extends StatelessWidget {
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
       themeMode: ThemeMode.system,
+      navigatorObservers: [iosNavigationRouteObserver],
       builder: (context, child) {
         return child!;
       },
-      home: const LockGate(child: AppShell()),
+      home: const AppShell(),
     );
   }
 }
-

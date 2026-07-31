@@ -1,5 +1,8 @@
 import 'dart:async';
+import 'dart:io';
 
+import 'package:debt_tracker/core/platform/ios_navigation_channel.dart';
+import 'package:debt_tracker/core/platform/native_sheets_channel.dart';
 import 'package:debt_tracker/data/models/entry.dart';
 import 'package:debt_tracker/features/dashboard/dashboard_screen.dart';
 import 'package:debt_tracker/features/entry_form/entry_form_screen.dart';
@@ -8,9 +11,8 @@ import 'package:debt_tracker/features/owed_to_me/owed_to_me_screen.dart';
 import 'package:debt_tracker/features/scratchpad/scratchpad_screen.dart';
 import 'package:debt_tracker/features/search/search_screen.dart';
 import 'package:debt_tracker/features/settings/settings_screen.dart';
-import 'package:debt_tracker/features/trash/trash_screen.dart';
-import 'package:debt_tracker/presentation/providers/security_controller.dart';
 import 'package:debt_tracker/presentation/widgets/app_page_route.dart';
+import 'package:debt_tracker/presentation/providers/app_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -21,7 +23,7 @@ class AppShell extends ConsumerStatefulWidget {
   ConsumerState<AppShell> createState() => _AppShellState();
 }
 
-class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver {
+class _AppShellState extends ConsumerState<AppShell> {
   int _index = 0;
 
   final _titles = const <String>[
@@ -34,29 +36,22 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
+    iosNavigationChannel.onTabSelected = _selectTab;
+    iosNavigationChannel.onAddRequested = _openAddFromNative;
+    nativeSheetsChannel.onAddEntryTypeSelected = _handleNativeEntryType;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(iosNavigationChannel.setSelectedTab(_index));
+      unawaited(iosNavigationChannel.setNavigationVisible(true));
+    });
   }
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
+    iosNavigationChannel.onTabSelected = null;
+    iosNavigationChannel.onAddRequested = null;
+    nativeSheetsChannel.onAddEntryTypeSelected = null;
+    unawaited(iosNavigationChannel.setNavigationVisible(false));
     super.dispose();
-  }
-
-  Timer? _lockTimer;
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused || state == AppLifecycleState.hidden) {
-      _lockTimer?.cancel();
-      _lockTimer = Timer(const Duration(minutes: 1), () {
-        if (mounted) {
-          ref.read(securityControllerProvider.notifier).lockSession();
-        }
-      });
-    } else if (state == AppLifecycleState.resumed) {
-      _lockTimer?.cancel();
-    }
   }
 
   void _openSearch() {
@@ -67,12 +62,18 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
     Navigator.of(context).push(AppPageRoute(child: const SettingsScreen()));
   }
 
-  void _openForm({
-    EntryType? initialType,
-    Entry? entry,
-  }) {
-    Navigator.of(context).push(
-      AppPageRoute(
+  void _openForm({EntryType? initialType, Entry? entry}) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (context) => ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
         child: EntryFormScreen(
           initialType: initialType ?? EntryType.owedToMe,
           entry: entry,
@@ -81,8 +82,8 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
     );
   }
 
-  void _openAddChooser() {
-    showModalBottomSheet<void>(
+  Future<void> _openAddChooser() {
+    return showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
       backgroundColor: Theme.of(context).colorScheme.surface,
@@ -131,25 +132,68 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
     );
   }
 
+  Future<void> _openAddFromNative() async {
+    if (Platform.isIOS) {
+      await nativeSheetsChannel.showAddEntryChooser();
+    } else {
+      await _openAddChooser();
+    }
+  }
+
+  void _handleNativeEntryType(String type) {
+    switch (type) {
+      case 'owedToMe':
+        _openForm(initialType: EntryType.owedToMe);
+        break;
+      case 'owedByMe':
+        _openForm(initialType: EntryType.owedByMe);
+        break;
+      case 'scratchpad':
+        _openForm(initialType: EntryType.scratchpad);
+        break;
+      default:
+        break;
+    }
+  }
+
+  void _selectTab(int index) {
+    if (index == 4) {
+      _openSearch();
+      unawaited(iosNavigationChannel.setSelectedTab(_index));
+      return;
+    }
+    if (_index == index) return;
+    setState(() => _index = index);
+    unawaited(iosNavigationChannel.setSelectedTab(index));
+  }
+
   @override
   Widget build(BuildContext context) {
+    final bootstrap = ref.watch(appBootstrapProvider);
+
+    return bootstrap.when(
+      loading: () => const Scaffold(
+        body: Center(child: CircularProgressIndicator.adaptive()),
+      ),
+      error: (error, stack) => Scaffold(
+        body: Center(child: Text('Error: $error')),
+      ),
+      data: (_) => _buildShell(context),
+    );
+  }
+
+  Widget _buildShell(BuildContext context) {
     final pages = <Widget>[
-      DashboardScreen(
-        onSearch: _openSearch,
-        onAdd: _openAddChooser,
-      ),
-      OwedToMeScreen(
-        onAdd: () => _openForm(initialType: EntryType.owedToMe),
-      ),
-      OwedByMeScreen(
-        onAdd: () => _openForm(initialType: EntryType.owedByMe),
-      ),
+      DashboardScreen(onSearch: _openSearch, onAdd: _openAddChooser),
+      OwedToMeScreen(onAdd: () => _openForm(initialType: EntryType.owedToMe)),
+      OwedByMeScreen(onAdd: () => _openForm(initialType: EntryType.owedByMe)),
       ScratchpadScreen(
         onAdd: () => _openForm(initialType: EntryType.scratchpad),
       ),
     ];
 
     final showSearch = _index == 0 || _index == 1 || _index == 2 || _index == 3;
+    final useNativeIosNavigation = Platform.isIOS;
 
     return Scaffold(
       extendBody: true,
@@ -185,7 +229,9 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
                   end: Alignment.bottomCenter,
                   colors: [
                     Theme.of(context).colorScheme.surface,
-                    Theme.of(context).colorScheme.surface.withValues(alpha: 0.0),
+                    Theme.of(
+                      context,
+                    ).colorScheme.surface.withValues(alpha: 0.0),
                   ],
                 ),
               ),
@@ -193,44 +239,52 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
           ),
         ],
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      bottomNavigationBar: BottomAppBar(
-        shape: const CircularNotchedRectangle(),
-        notchMargin: 8,
-        clipBehavior: Clip.antiAlias,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            _NavBarItem(
-              icon: Icons.dashboard_rounded,
-              isSelected: _index == 0,
-              onTap: () => setState(() => _index = 0),
+      floatingActionButtonLocation: useNativeIosNavigation
+          ? null
+          : FloatingActionButtonLocation.centerDocked,
+      bottomNavigationBar: useNativeIosNavigation
+          ? null
+          : BottomAppBar(
+              shape: const CircularNotchedRectangle(),
+              notchMargin: 8,
+              clipBehavior: Clip.antiAlias,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _NavBarItem(
+                    icon: Icons.dashboard_rounded,
+                    isSelected: _index == 0,
+                    onTap: () => _selectTab(0),
+                  ),
+                  _NavBarItem(
+                    icon: Icons.edit_document,
+                    isSelected: _index == 3,
+                    onTap: () => _selectTab(3),
+                  ),
+                  const SizedBox(width: 48), // Space for FAB
+                  _NavBarItem(
+                    icon: Icons.call_received_rounded,
+                    isSelected: _index == 1,
+                    onTap: () => _selectTab(1),
+                  ),
+                  _NavBarItem(
+                    icon: Icons.call_made_rounded,
+                    isSelected: _index == 2,
+                    onTap: () => _selectTab(2),
+                  ),
+                ],
+              ),
             ),
-            _NavBarItem(
-              icon: Icons.edit_document,
-              isSelected: _index == 3,
-              onTap: () => setState(() => _index = 3),
+      floatingActionButton: useNativeIosNavigation
+          ? null
+          : FloatingActionButton(
+              shape: const CircleBorder(),
+              elevation: 2,
+              onPressed: _index == 0
+                  ? _openAddChooser
+                  : () => _openForm(initialType: _initialTypeForIndex(_index)),
+              child: const Icon(Icons.add_rounded, size: 28),
             ),
-            const SizedBox(width: 48), // Space for FAB
-            _NavBarItem(
-              icon: Icons.call_received_rounded,
-              isSelected: _index == 1,
-              onTap: () => setState(() => _index = 1),
-            ),
-            _NavBarItem(
-              icon: Icons.call_made_rounded,
-              isSelected: _index == 2,
-              onTap: () => setState(() => _index = 2),
-            ),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        shape: const CircleBorder(),
-        elevation: 2,
-        onPressed: _index == 0 ? _openAddChooser : () => _openForm(initialType: _initialTypeForIndex(_index)),
-        child: const Icon(Icons.add_rounded, size: 28),
-      ),
     );
   }
 
@@ -265,9 +319,10 @@ class _NavBarItem extends StatelessWidget {
     return IconButton(
       iconSize: 28,
       icon: Icon(icon),
-      color: isSelected ? scheme.primary : scheme.onSurfaceVariant.withValues(alpha: 0.6),
+      color: isSelected
+          ? scheme.primary
+          : scheme.onSurfaceVariant.withValues(alpha: 0.6),
       onPressed: onTap,
     );
   }
 }
-

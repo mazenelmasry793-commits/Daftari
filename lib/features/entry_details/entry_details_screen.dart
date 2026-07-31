@@ -5,7 +5,6 @@ import 'package:debt_tracker/data/models/entry.dart';
 import 'package:debt_tracker/features/entry_details/widgets/add_payment_dialog.dart';
 import 'package:debt_tracker/features/entry_form/entry_form_screen.dart';
 import 'package:debt_tracker/presentation/providers/app_providers.dart';
-import 'package:debt_tracker/presentation/widgets/app_page_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -38,8 +37,17 @@ class _EntryDetailsScreenState extends ConsumerState<EntryDetailsScreen> {
   }
 
   Future<void> _edit(Entry entry) async {
-    final result = await Navigator.of(context).push<Entry?>(
-      AppPageRoute(
+    final result = await showModalBottomSheet<Entry?>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (context) => ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
         child: EntryFormScreen(entry: entry, initialType: entry.type),
       ),
     );

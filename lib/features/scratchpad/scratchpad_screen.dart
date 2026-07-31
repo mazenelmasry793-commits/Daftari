@@ -20,8 +20,17 @@ class ScratchpadScreen extends ConsumerWidget {
     final repository = ref.read(entryRepositoryProvider);
 
     Future<void> openConvert(Entry entry, EntryType type) async {
-      await Navigator.of(context).push(
-        AppPageRoute(
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
+        showDragHandle: true,
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        builder: (context) => ClipRRect(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
           child: EntryFormScreen(
             entry: entry,
             initialType: entry.type,

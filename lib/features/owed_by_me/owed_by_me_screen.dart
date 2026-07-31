@@ -18,7 +18,7 @@ class OwedByMeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final entriesAsync = ref.watch(owedByMeEntriesProvider);
-    final repository = ref.read(entryRepositoryProvider);
+    final repository = ref.watch(entryRepositoryProvider);
 
     return entriesAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
