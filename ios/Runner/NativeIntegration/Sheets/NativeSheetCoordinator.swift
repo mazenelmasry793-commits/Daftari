@@ -8,12 +8,15 @@ final class NativeSheetCoordinator: NSObject, UIAdaptivePresentationControllerDe
   }
 
   private var sheetsChannel: FlutterMethodChannel?
+  private var binaryMessenger: FlutterBinaryMessenger?
+  private let entryFormCoordinator = NativeEntryFormCoordinator()
   private var presentationKind: PresentationKind?
   private weak var currentPresenter: UIViewController?
 
   var isPresented: Bool { presentationKind != nil }
 
   func configure(messenger: FlutterBinaryMessenger) {
+    binaryMessenger = messenger
     let channel = FlutterMethodChannel(
       name: NativeChannelConstants.sheetsChannel,
       binaryMessenger: messenger
@@ -84,6 +87,16 @@ final class NativeSheetCoordinator: NSObject, UIAdaptivePresentationControllerDe
           return
         }
       }
+    case NativeChannelConstants.SheetMethod.showNativeEntryForm:
+      let arguments = call.arguments as? [String: Any]
+      guard let type = arguments?["type"] as? String,
+            let presenter = topViewController(),
+            let binaryMessenger,
+            entryFormCoordinator.present(type: type, from: presenter, messenger: binaryMessenger) else {
+        result(nil)
+        return
+      }
+      result(nil)
     default:
       result(FlutterMethodNotImplemented)
     }

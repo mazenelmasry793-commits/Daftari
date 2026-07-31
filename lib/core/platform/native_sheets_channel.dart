@@ -4,6 +4,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 typedef OnAddEntryTypeSelected = void Function(String type);
+typedef OnNativeEntryFormSubmitted = Future<bool> Function(
+  Map<String, dynamic> payload,
+);
 
 class NativeSheetsChannel {
   NativeSheetsChannel({
@@ -18,6 +21,7 @@ class NativeSheetsChannel {
   final bool Function() _isIos;
 
   OnAddEntryTypeSelected? onAddEntryTypeSelected;
+  OnNativeEntryFormSubmitted? onNativeEntryFormSubmitted;
 
   Future<void> showAddEntryChooser() async {
     if (!_isIos()) return;
@@ -25,6 +29,15 @@ class NativeSheetsChannel {
       await _channel.invokeMethod('showAddEntryChooser');
     } on PlatformException catch (e) {
       debugPrint('Error invoking showAddEntryChooser: $e');
+    }
+  }
+
+  Future<void> showNativeEntryForm({required String type}) async {
+    if (!_isIos()) return;
+    try {
+      await _channel.invokeMethod('showNativeEntryForm', {'type': type});
+    } on PlatformException catch (e) {
+      debugPrint('Error invoking showNativeEntryForm: $e');
     }
   }
 
@@ -64,6 +77,14 @@ class NativeSheetsChannel {
         break;
       case 'addEntryChooserDismissed':
         break;
+      case 'nativeEntryFormSubmitted':
+        final rawArgs = call.arguments as Map<dynamic, dynamic>?;
+        final args = rawArgs == null
+            ? <String, dynamic>{}
+            : Map<String, dynamic>.from(rawArgs);
+        final callback = onNativeEntryFormSubmitted;
+        if (callback == null) return false;
+        return callback(args);
     }
   }
 }

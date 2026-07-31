@@ -13,8 +13,10 @@ enum NativeChannelConstants {
 
   enum SheetMethod {
     static let showAddEntryChooser = "showAddEntryChooser"
+    static let showNativeEntryForm = "showNativeEntryForm"
     static let showNativeDatePicker = "showNativeDatePicker"
     static let addEntryTypeSelected = "addEntryTypeSelected"
     static let addEntryChooserDismissed = "addEntryChooserDismissed"
+    static let nativeEntryFormSubmitted = "nativeEntryFormSubmitted"
   }
 }

@@ -15,6 +15,7 @@ import 'package:debt_tracker/presentation/widgets/app_page_route.dart';
 import 'package:debt_tracker/presentation/providers/app_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:isar_community/isar.dart';
 
 class AppShell extends ConsumerStatefulWidget {
   const AppShell({super.key});
@@ -39,6 +40,7 @@ class _AppShellState extends ConsumerState<AppShell> {
     iosNavigationChannel.onTabSelected = _selectTab;
     iosNavigationChannel.onAddRequested = _openAddFromNative;
     nativeSheetsChannel.onAddEntryTypeSelected = _handleNativeEntryType;
+    nativeSheetsChannel.onNativeEntryFormSubmitted = _saveNativeEntry;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(iosNavigationChannel.setSelectedTab(_index));
       unawaited(iosNavigationChannel.setNavigationVisible(true));
@@ -50,6 +52,7 @@ class _AppShellState extends ConsumerState<AppShell> {
     iosNavigationChannel.onTabSelected = null;
     iosNavigationChannel.onAddRequested = null;
     nativeSheetsChannel.onAddEntryTypeSelected = null;
+    nativeSheetsChannel.onNativeEntryFormSubmitted = null;
     unawaited(iosNavigationChannel.setNavigationVisible(false));
     super.dispose();
   }
@@ -63,6 +66,14 @@ class _AppShellState extends ConsumerState<AppShell> {
   }
 
   void _openForm({EntryType? initialType, Entry? entry}) {
+    if (Platform.isIOS && entry == null) {
+      unawaited(
+        nativeSheetsChannel.showNativeEntryForm(
+          type: (initialType ?? EntryType.owedToMe).name,
+        ),
+      );
+      return;
+    }
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -83,6 +94,9 @@ class _AppShellState extends ConsumerState<AppShell> {
   }
 
   Future<void> _openAddChooser() {
+    if (Platform.isIOS) {
+      return nativeSheetsChannel.showAddEntryChooser();
+    }
     return showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
@@ -141,18 +155,50 @@ class _AppShellState extends ConsumerState<AppShell> {
   }
 
   void _handleNativeEntryType(String type) {
-    switch (type) {
-      case 'owedToMe':
-        _openForm(initialType: EntryType.owedToMe);
-        break;
-      case 'owedByMe':
-        _openForm(initialType: EntryType.owedByMe);
-        break;
-      case 'scratchpad':
-        _openForm(initialType: EntryType.scratchpad);
-        break;
-      default:
-        break;
+    unawaited(nativeSheetsChannel.showNativeEntryForm(type: type));
+  }
+
+  Future<bool> _saveNativeEntry(Map<String, dynamic> payload) async {
+    final type = switch (payload['type']) {
+      'owedToMe' => EntryType.owedToMe,
+      'owedByMe' => EntryType.owedByMe,
+      'scratchpad' => EntryType.scratchpad,
+      _ => null,
+    };
+    final title = (payload['title'] as String? ?? '').trim();
+    final amountValue = payload['amount'];
+    final amount = amountValue is num ? amountValue.toDouble() : null;
+    final note = (payload['note'] as String? ?? '').trim();
+    final debtDate = DateTime.tryParse(payload['debtDate'] as String? ?? '');
+
+    if (type == null || title.isEmpty) return false;
+    if (type != EntryType.scratchpad && (amount == null || amount <= 0)) {
+      return false;
+    }
+    if (amount != null && amount <= 0) return false;
+
+    try {
+      final now = DateTime.now();
+      final entry = Entry()
+        ..id = Isar.autoIncrement
+        ..title = title
+        ..amount = amount
+        ..note = note.isEmpty ? null : note
+        ..type = type
+        ..debtDate = debtDate ?? now
+        ..status = EntryStatus.active
+        ..createdAt = now
+        ..updatedAt = now
+        ..payments = <Payment>[];
+      await ref.read(entryRepositoryProvider).save(entry);
+      return true;
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error.toString())),
+        );
+      }
+      return false;
     }
   }
 
