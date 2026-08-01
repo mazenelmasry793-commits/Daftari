@@ -1,4 +1,5 @@
 import 'package:debt_tracker/core/constants/app_constants.dart';
+import 'package:debt_tracker/core/platform/app_toast_service.dart';
 import 'package:debt_tracker/core/platform/ios_navigation_channel.dart';
 import 'package:debt_tracker/core/theme/app_theme.dart';
 import 'package:flutter/material.dart';
@@ -19,6 +20,7 @@ class DebtTrackerApp extends StatelessWidget {
     return MaterialApp(
       title: AppConstants.appName,
       debugShowCheckedModeBanner: false,
+      scaffoldMessengerKey: appScaffoldMessengerKey,
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
       themeMode: ThemeMode.system,

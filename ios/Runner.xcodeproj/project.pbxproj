@@ -23,6 +23,7 @@
 		A10000010000000000000009 /* NativeEntryFormCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000020000000000000009 /* NativeEntryFormCoordinator.swift */; };
 		A10000010000000000000010 /* NativeEntryFormViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000020000000000000010 /* NativeEntryFormViewController.swift */; };
 		A10000010000000000000011 /* NativeEntryFormPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000020000000000000011 /* NativeEntryFormPayload.swift */; };
+		A10000010000000000000012 /* NativeToastPresenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000020000000000000012 /* NativeToastPresenter.swift */; };
 		78A318202AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage in Frameworks */ = {isa = PBXBuildFile; productRef = 78A3181F2AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage */; };
 		877DA17ED607957F1D2BE648 /* Pods_Runner.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6668F39A64E13ED1565A4DA6 /* Pods_Runner.framework */; };
 		97C146FC1CF9000F007C117D /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FA1CF9000F007C117D /* Main.storyboard */; };
@@ -75,6 +76,7 @@
 		A10000020000000000000009 /* NativeEntryFormCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeEntryFormCoordinator.swift; sourceTree = "<group>"; };
 		A10000020000000000000010 /* NativeEntryFormViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeEntryFormViewController.swift; sourceTree = "<group>"; };
 		A10000020000000000000011 /* NativeEntryFormPayload.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeEntryFormPayload.swift; sourceTree = "<group>"; };
+		A10000020000000000000012 /* NativeToastPresenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeToastPresenter.swift; sourceTree = "<group>"; };
 		78E0A7A72DC9AD7400C4905E /* FlutterGeneratedPluginSwiftPackage */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = FlutterGeneratedPluginSwiftPackage; path = Flutter/ephemeral/Packages/FlutterGeneratedPluginSwiftPackage; sourceTree = "<group>"; };
 		7AFA3C8E1D35360C0083082E /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Release.xcconfig; path = Flutter/Release.xcconfig; sourceTree = "<group>"; };
 		9740EEB21CF90195004384FC /* Debug.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = Debug.xcconfig; path = Flutter/Debug.xcconfig; sourceTree = "<group>"; };
@@ -187,6 +189,7 @@
 				A10000030000000000000002 /* Navigation */,
 				A10000030000000000000003 /* Sheets */,
 				A10000030000000000000004 /* EntryForm */,
+				A10000030000000000000005 /* Toast */,
 			);
 			path = NativeIntegration;
 			sourceTree = "<group>";
@@ -218,6 +221,14 @@
 				A10000020000000000000011 /* NativeEntryFormPayload.swift */,
 			);
 			path = EntryForm;
+			sourceTree = "<group>";
+		};
+		A10000030000000000000005 /* Toast */ = {
+			isa = PBXGroup;
+			children = (
+				A10000020000000000000012 /* NativeToastPresenter.swift */,
+			);
+			path = Toast;
 			sourceTree = "<group>";
 		};
 		BCEB72E73903BB6E1B0732E7 /* Pods */ = {
@@ -465,6 +476,7 @@
 				A10000010000000000000009 /* NativeEntryFormCoordinator.swift in Sources */,
 				A10000010000000000000010 /* NativeEntryFormViewController.swift in Sources */,
 				A10000010000000000000011 /* NativeEntryFormPayload.swift in Sources */,
+				A10000010000000000000012 /* NativeToastPresenter.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

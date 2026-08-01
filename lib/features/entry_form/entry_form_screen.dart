@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:debt_tracker/core/platform/native_sheets_channel.dart';
+import 'package:debt_tracker/core/platform/app_toast_service.dart';
 import 'package:debt_tracker/core/utils/formatters.dart';
 import 'package:debt_tracker/data/models/entry.dart';
 import 'package:debt_tracker/presentation/providers/app_providers.dart';
@@ -91,11 +92,18 @@ class _EntryFormScreenState extends ConsumerState<EntryFormScreen> {
       final saved = await repository.save(entry);
       if (!mounted) return;
       Navigator.of(context).pop(saved);
+      final message = widget.conversionType != null
+          ? 'Converted successfully'
+          : widget.entry == null
+          ? 'Entry saved'
+          : 'Entry updated';
+      await appToastService.show(message, type: AppToastType.success);
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error.toString())));
+      await appToastService.show(
+        'Something went wrong',
+        type: AppToastType.error,
+      );
     } finally {
       if (mounted) {
         setState(() => _saving = false);
@@ -190,11 +198,12 @@ class _EntryFormScreenState extends ConsumerState<EntryFormScreen> {
                 InkWell(
                   onTap: () async {
                     if (Platform.isIOS) {
-                      final date = await nativeSheetsChannel.showNativeDatePicker(
-                        initialDate: _debtDate,
-                        firstDate: DateTime(2000),
-                        lastDate: DateTime(2100),
-                      );
+                      final date = await nativeSheetsChannel
+                          .showNativeDatePicker(
+                            initialDate: _debtDate,
+                            firstDate: DateTime(2000),
+                            lastDate: DateTime(2100),
+                          );
                       if (date != null) {
                         setState(() => _debtDate = date);
                       }

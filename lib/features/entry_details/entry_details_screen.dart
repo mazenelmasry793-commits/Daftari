@@ -1,4 +1,5 @@
 import 'package:debt_tracker/core/utils/formatters.dart';
+import 'package:debt_tracker/core/platform/app_toast_service.dart';
 import 'package:debt_tracker/core/widgets/confirm_dialog.dart';
 import 'package:debt_tracker/core/widgets/empty_state.dart';
 import 'package:debt_tracker/data/models/entry.dart';
@@ -57,13 +58,32 @@ class _EntryDetailsScreenState extends ConsumerState<EntryDetailsScreen> {
   }
 
   Future<void> _markCompleted(Entry entry) async {
-    await ref.read(entryRepositoryProvider).markCompleted(entry.id);
-    _refresh();
+    try {
+      await ref.read(entryRepositoryProvider).markCompleted(entry.id);
+      await appToastService.show(
+        'Marked as completed',
+        type: AppToastType.success,
+      );
+      _refresh();
+    } catch (_) {
+      await appToastService.show(
+        'Something went wrong',
+        type: AppToastType.error,
+      );
+    }
   }
 
   Future<void> _restore(Entry entry) async {
-    await ref.read(entryRepositoryProvider).restore(entry.id);
-    if (mounted) Navigator.of(context).pop();
+    try {
+      await ref.read(entryRepositoryProvider).restore(entry.id);
+      await appToastService.show('Entry restored', type: AppToastType.success);
+      if (mounted) Navigator.of(context).pop();
+    } catch (_) {
+      await appToastService.show(
+        'Something went wrong',
+        type: AppToastType.error,
+      );
+    }
   }
 
   Future<void> _delete(Entry entry) async {
@@ -78,11 +98,33 @@ class _EntryDetailsScreenState extends ConsumerState<EntryDetailsScreen> {
     );
     if (!confirm) return;
     if (entry.isDeleted) {
-      await ref.read(entryRepositoryProvider).permanentlyDelete(entry.id);
-      if (mounted) Navigator.of(context).pop();
+      try {
+        await ref.read(entryRepositoryProvider).permanentlyDelete(entry.id);
+        await appToastService.show(
+          'Deleted permanently',
+          type: AppToastType.success,
+        );
+        if (mounted) Navigator.of(context).pop();
+      } catch (_) {
+        await appToastService.show(
+          'Something went wrong',
+          type: AppToastType.error,
+        );
+      }
     } else {
-      await ref.read(entryRepositoryProvider).softDelete(entry.id);
-      if (mounted) Navigator.of(context).pop();
+      try {
+        await ref.read(entryRepositoryProvider).softDelete(entry.id);
+        await appToastService.show(
+          'Moved to trash',
+          type: AppToastType.success,
+        );
+        if (mounted) Navigator.of(context).pop();
+      } catch (_) {
+        await appToastService.show(
+          'Something went wrong',
+          type: AppToastType.error,
+        );
+      }
     }
   }
 
@@ -100,8 +142,16 @@ class _EntryDetailsScreenState extends ConsumerState<EntryDetailsScreen> {
       entry.status = EntryStatus.completed;
     }
 
-    await ref.read(entryRepositoryProvider).save(entry);
-    _refresh();
+    try {
+      await ref.read(entryRepositoryProvider).save(entry);
+      await appToastService.show('Payment added', type: AppToastType.success);
+      _refresh();
+    } catch (_) {
+      await appToastService.show(
+        'Something went wrong',
+        type: AppToastType.error,
+      );
+    }
   }
 
   Future<void> _deletePayment(Entry entry, Payment payment) async {

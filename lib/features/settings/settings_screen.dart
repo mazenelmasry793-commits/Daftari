@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:debt_tracker/core/utils/file_saver.dart';
+import 'package:debt_tracker/core/platform/app_toast_service.dart';
 import 'package:debt_tracker/core/widgets/confirm_dialog.dart';
 import 'package:debt_tracker/features/trash/trash_screen.dart';
 import 'package:debt_tracker/presentation/providers/app_providers.dart';
@@ -40,16 +41,19 @@ class SettingsScreen extends ConsumerWidget {
                 title: const Text('Export local database to JSON'),
                 subtitle: const Text('Save a backup file on this device.'),
                 onTap: () async {
-                  final json = await repository.exportJson();
-                  final fileName =
-                      'debt_tracker_backup_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.json';
-                  final savedPath = await saveTextFile(
-                    fileName: fileName,
-                    content: json,
-                  );
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Backup saved as $savedPath')),
+                  try {
+                    final json = await repository.exportJson();
+                    final fileName =
+                        'debt_tracker_backup_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.json';
+                    await saveTextFile(fileName: fileName, content: json);
+                    await appToastService.show(
+                      'Export completed',
+                      type: AppToastType.success,
+                    );
+                  } catch (_) {
+                    await appToastService.show(
+                      'Export failed',
+                      type: AppToastType.error,
                     );
                   }
                 },
@@ -59,65 +63,62 @@ class SettingsScreen extends ConsumerWidget {
                 title: const Text('Import JSON backup'),
                 subtitle: const Text('Restore entries from a backup file.'),
                 onTap: () async {
-                  final result = await FilePicker.platform.pickFiles(
-                    type: FileType.custom,
-                    allowedExtensions: const ['json'],
-                    withData: true,
-                  );
-                  final file = result?.files.single;
-                  if (file == null) return;
-                  if (file.bytes == null) return;
-
-                  final contents = utf8.decode(file.bytes!);
-                  final preview = await repository.previewImport(contents);
-
-                  ImportStrategy strategy = ImportStrategy.skipExisting;
-
-                  if (preview.conflictingEntries > 0) {
-                    if (!context.mounted) return;
-                    final dialogResult = await showDialog<ImportStrategy>(
-                      context: context,
-                      builder: (context) => AlertDialog(
-                        title: const Text('Import Conflicts'),
-                        content: Text(
-                          'Found ${preview.newEntries} new entries and ${preview.conflictingEntries} entries that already exist.\n\n'
-                          'How would you like to handle the existing entries?',
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.of(context).pop(null),
-                            child: const Text('Cancel'),
-                          ),
-                          TextButton(
-                            onPressed: () => Navigator.of(
-                              context,
-                            ).pop(ImportStrategy.skipExisting),
-                            child: const Text('Skip Existing'),
-                          ),
-                          FilledButton.tonal(
-                            onPressed: () => Navigator.of(
-                              context,
-                            ).pop(ImportStrategy.replaceExisting),
-                            child: const Text('Replace Existing'),
-                          ),
-                        ],
-                      ),
+                  try {
+                    final result = await FilePicker.platform.pickFiles(
+                      type: FileType.custom,
+                      allowedExtensions: const ['json'],
+                      withData: true,
                     );
-                    if (dialogResult == null) return;
-                    strategy = dialogResult;
-                  }
+                    final file = result?.files.single;
+                    if (file == null || file.bytes == null) return;
 
-                  final importResult = await repository.importJson(
-                    contents,
-                    strategy: strategy,
-                  );
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Imported: ${importResult.inserted} new, ${importResult.replaced} replaced, ${importResult.skipped} skipped.',
+                    final contents = utf8.decode(file.bytes!);
+                    final preview = await repository.previewImport(contents);
+                    ImportStrategy strategy = ImportStrategy.skipExisting;
+
+                    if (preview.conflictingEntries > 0) {
+                      if (!context.mounted) return;
+                      final dialogResult = await showDialog<ImportStrategy>(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('Import Conflicts'),
+                          content: Text(
+                            'Found ${preview.newEntries} new entries and ${preview.conflictingEntries} entries that already exist.\n\n'
+                            'How would you like to handle the existing entries?',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.of(context).pop(null),
+                              child: const Text('Cancel'),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.of(
+                                context,
+                              ).pop(ImportStrategy.skipExisting),
+                              child: const Text('Skip Existing'),
+                            ),
+                            FilledButton.tonal(
+                              onPressed: () => Navigator.of(
+                                context,
+                              ).pop(ImportStrategy.replaceExisting),
+                              child: const Text('Replace Existing'),
+                            ),
+                          ],
                         ),
-                      ),
+                      );
+                      if (dialogResult == null) return;
+                      strategy = dialogResult;
+                    }
+
+                    await repository.importJson(contents, strategy: strategy);
+                    await appToastService.show(
+                      'Import completed',
+                      type: AppToastType.success,
+                    );
+                  } catch (_) {
+                    await appToastService.show(
+                      'Import failed',
+                      type: AppToastType.error,
                     );
                   }
                 },
@@ -144,7 +145,18 @@ class SettingsScreen extends ConsumerWidget {
                     destructive: true,
                   );
                   if (confirm) {
-                    await repository.emptyTrash();
+                    try {
+                      await repository.emptyTrash();
+                      await appToastService.show(
+                        'Trash emptied',
+                        type: AppToastType.success,
+                      );
+                    } catch (_) {
+                      await appToastService.show(
+                        'Something went wrong',
+                        type: AppToastType.error,
+                      );
+                    }
                   }
                 },
               ),
@@ -165,7 +177,18 @@ class SettingsScreen extends ConsumerWidget {
                     destructive: true,
                   );
                   if (confirm) {
-                    await repository.deleteAllData();
+                    try {
+                      await repository.deleteAllData();
+                      await appToastService.show(
+                        'Data cleared',
+                        type: AppToastType.success,
+                      );
+                    } catch (_) {
+                      await appToastService.show(
+                        'Something went wrong',
+                        type: AppToastType.error,
+                      );
+                    }
                   }
                 },
               ),

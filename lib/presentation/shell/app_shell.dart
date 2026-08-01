@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:debt_tracker/core/platform/ios_navigation_channel.dart';
+import 'package:debt_tracker/core/platform/app_toast_service.dart';
 import 'package:debt_tracker/core/platform/native_sheets_channel.dart';
 import 'package:debt_tracker/data/models/entry.dart';
 import 'package:debt_tracker/features/dashboard/dashboard_screen.dart';
@@ -191,13 +192,13 @@ class _AppShellState extends ConsumerState<AppShell> {
         ..updatedAt = now
         ..payments = <Payment>[];
       await ref.read(entryRepositoryProvider).save(entry);
+      await appToastService.show('Entry saved', type: AppToastType.success);
       return true;
     } catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error.toString())),
-        );
-      }
+      await appToastService.show(
+        'Something went wrong',
+        type: AppToastType.error,
+      );
       return false;
     }
   }
@@ -221,9 +222,8 @@ class _AppShellState extends ConsumerState<AppShell> {
       loading: () => const Scaffold(
         body: Center(child: CircularProgressIndicator.adaptive()),
       ),
-      error: (error, stack) => Scaffold(
-        body: Center(child: Text('Error: $error')),
-      ),
+      error: (error, stack) =>
+          Scaffold(body: Center(child: Text('Error: $error'))),
       data: (_) => _buildShell(context),
     );
   }

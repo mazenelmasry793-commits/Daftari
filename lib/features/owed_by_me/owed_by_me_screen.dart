@@ -1,4 +1,5 @@
 import 'package:debt_tracker/core/widgets/confirm_dialog.dart';
+import 'package:debt_tracker/core/platform/app_toast_service.dart';
 import 'package:debt_tracker/core/widgets/empty_state.dart';
 import 'package:debt_tracker/features/entry_details/entry_details_screen.dart';
 import 'package:debt_tracker/presentation/providers/app_providers.dart';
@@ -8,10 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class OwedByMeScreen extends ConsumerWidget {
-  const OwedByMeScreen({
-    required this.onAdd,
-    super.key,
-  });
+  const OwedByMeScreen({required this.onAdd, super.key});
 
   final VoidCallback onAdd;
 
@@ -48,7 +46,9 @@ class OwedByMeScreen extends ConsumerWidget {
                   return EntryCard(
                     entry: entry,
                     onTap: () => Navigator.of(context).push(
-                      AppPageRoute(child: EntryDetailsScreen(entryId: entry.id)),
+                      AppPageRoute(
+                        child: EntryDetailsScreen(entryId: entry.id),
+                      ),
                     ),
                     trailing: PopupMenuButton<_Action>(
                       icon: const Icon(Icons.more_vert_rounded),
@@ -57,31 +57,65 @@ class OwedByMeScreen extends ConsumerWidget {
                           case _Action.details:
                             if (context.mounted) {
                               Navigator.of(context).push(
-                                AppPageRoute(child: EntryDetailsScreen(entryId: entry.id)),
+                                AppPageRoute(
+                                  child: EntryDetailsScreen(entryId: entry.id),
+                                ),
                               );
                             }
                             break;
                           case _Action.complete:
-                            await repository.markCompleted(entry.id);
+                            try {
+                              await repository.markCompleted(entry.id);
+                              await appToastService.show(
+                                'Marked as completed',
+                                type: AppToastType.success,
+                              );
+                            } catch (_) {
+                              await appToastService.show(
+                                'Something went wrong',
+                                type: AppToastType.error,
+                              );
+                            }
                             break;
                           case _Action.delete:
                             final confirm = await showConfirmationDialog(
                               context,
                               title: 'Move to trash?',
-                              message: 'This entry will be moved to Trash and can be restored later.',
+                              message:
+                                  'This entry will be moved to Trash and can be restored later.',
                               confirmLabel: 'Move',
                               destructive: true,
                             );
                             if (confirm) {
-                              await repository.softDelete(entry.id);
+                              try {
+                                await repository.softDelete(entry.id);
+                                await appToastService.show(
+                                  'Moved to trash',
+                                  type: AppToastType.success,
+                                );
+                              } catch (_) {
+                                await appToastService.show(
+                                  'Something went wrong',
+                                  type: AppToastType.error,
+                                );
+                              }
                             }
                             break;
                         }
                       },
                       itemBuilder: (context) => const [
-                        PopupMenuItem(value: _Action.details, child: Text('Open details')),
-                        PopupMenuItem(value: _Action.complete, child: Text('Mark completed')),
-                        PopupMenuItem(value: _Action.delete, child: Text('Delete')),
+                        PopupMenuItem(
+                          value: _Action.details,
+                          child: Text('Open details'),
+                        ),
+                        PopupMenuItem(
+                          value: _Action.complete,
+                          child: Text('Mark completed'),
+                        ),
+                        PopupMenuItem(
+                          value: _Action.delete,
+                          child: Text('Delete'),
+                        ),
                       ],
                     ),
                   );

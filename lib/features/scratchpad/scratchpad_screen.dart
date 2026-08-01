@@ -1,4 +1,5 @@
 import 'package:debt_tracker/core/widgets/confirm_dialog.dart';
+import 'package:debt_tracker/core/platform/app_toast_service.dart';
 import 'package:debt_tracker/core/widgets/empty_state.dart';
 import 'package:debt_tracker/data/models/entry.dart';
 import 'package:debt_tracker/features/entry_details/entry_details_screen.dart';
@@ -105,7 +106,18 @@ class ScratchpadScreen extends ConsumerWidget {
                               destructive: true,
                             );
                             if (confirm) {
-                              await repository.softDelete(entry.id);
+                              try {
+                                await repository.softDelete(entry.id);
+                                await appToastService.show(
+                                  'Moved to trash',
+                                  type: AppToastType.success,
+                                );
+                              } catch (_) {
+                                await appToastService.show(
+                                  'Something went wrong',
+                                  type: AppToastType.error,
+                                );
+                              }
                             }
                             break;
                         }

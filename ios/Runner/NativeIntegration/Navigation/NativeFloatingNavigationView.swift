@@ -10,6 +10,8 @@ final class NativeFloatingNavigationView: UIView, UITabBarDelegate {
   // side. The 16 pt visible gap keeps the platter and + control distinct.
   private let liquidGlassHorizontalInset: CGFloat = 21
   private let visibleTabBarButtonGap: CGFloat = 16
+  // A subtle, shared downward shift that keeps both native controls together.
+  private let bottomNavigationLowering: CGFloat = 4
   private var wantsVisible = false
   private var keyboardVisible = false
 
@@ -96,7 +98,10 @@ final class NativeFloatingNavigationView: UIView, UITabBarDelegate {
     NSLayoutConstraint.activate([
       rowContainer.leadingAnchor.constraint(equalTo: leadingAnchor),
       rowContainer.trailingAnchor.constraint(equalTo: trailingAnchor),
-      rowContainer.bottomAnchor.constraint(equalTo: safeAreaLayoutGuide.bottomAnchor),
+      rowContainer.bottomAnchor.constraint(
+        equalTo: safeAreaLayoutGuide.bottomAnchor,
+        constant: bottomNavigationLowering
+      ),
       rowContainer.heightAnchor.constraint(equalToConstant: 83),
       tabBar.leadingAnchor.constraint(equalTo: rowContainer.leadingAnchor),
       tabBar.trailingAnchor.constraint(
