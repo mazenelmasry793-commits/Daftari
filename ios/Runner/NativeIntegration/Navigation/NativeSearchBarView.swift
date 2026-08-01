@@ -49,6 +49,32 @@ final class NativeSearchBarView: UIView, UISearchBarDelegate {
     }
   }
 
+  func finalizeVisibleState() {
+    isSearchActive = true
+    isHidden = false
+    alpha = 1
+    transform = .identity
+    isUserInteractionEnabled = true
+    layoutIfNeeded()
+    assert(!isHidden && alpha == 1 && transform == .identity)
+    assert(frame.width > 0 && frame.height > 0)
+    assert(searchBar.searchTextField.frame.width > 0)
+    #if DEBUG
+    print("[NativeSearch] searching outer=\(frame) field=\(searchBar.searchTextField.frame) alpha=\(alpha) hidden=\(isHidden) firstResponder=\(searchBar.searchTextField.isFirstResponder)")
+    #endif
+    focusSearch()
+  }
+
+  func finalizeHiddenState() {
+    isSearchActive = false
+    searchBar.resignFirstResponder()
+    searchBar.text = ""
+    isUserInteractionEnabled = false
+    alpha = 0
+    transform = .identity
+    isHidden = true
+  }
+
   private func focusSearch() {
     DispatchQueue.main.async { [weak self] in
       guard let self, self.isSearchActive else { return }

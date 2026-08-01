@@ -30,6 +30,10 @@ final class NativeFloatingNavigationView: UIView, UITabBarDelegate {
   private var wantsVisible = false
   private var keyboardVisible = false
   private var searchState: SearchState = .normal
+  private var searchAnimator: UIViewPropertyAnimator?
+  private var searchTransitionToken = 0
+  private let searchAnimationDuration: TimeInterval = 0.34
+  private let searchSpringDamping: CGFloat = 0.92
 
   init(
     onTabSelected: @escaping (Int) -> Void,
@@ -61,11 +65,12 @@ final class NativeFloatingNavigationView: UIView, UITabBarDelegate {
   }
 
   deinit {
+    searchAnimator?.stopAnimation(true)
     NotificationCenter.default.removeObserver(self)
   }
 
   override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
-    guard wantsVisible && !keyboardVisible && !isHidden else { return false }
+    guard wantsVisible && !isHidden else { return false }
     let containerPoint = convert(point, to: rowContainer)
     return rowContainer.point(inside: containerPoint, with: event)
   }
@@ -156,7 +161,7 @@ final class NativeFloatingNavigationView: UIView, UITabBarDelegate {
   }
 
   @objc private func closeSearchTapped() {
-    guard searchState == .searching else { return }
+    guard searchState == .entering || searchState == .searching else { return }
     UIImpactFeedbackGenerator(style: .light).impactOccurred()
     exitSearchMode(notify: true)
   }
@@ -227,7 +232,7 @@ final class NativeFloatingNavigationView: UIView, UITabBarDelegate {
     searchState = .exiting
     onSearchModeChanged(false)
     searchBar.setSearchVisible(false, animated: false)
-    tabBar.isUserInteractionEnabled = true
+    tabBar.isUserInteractionEnabled = false
     configureActionButton(forSearchMode: false)
     animateSearchTransition(entering: false)
     if notify {
@@ -236,32 +241,58 @@ final class NativeFloatingNavigationView: UIView, UITabBarDelegate {
   }
 
   private func animateSearchTransition(entering: Bool) {
-    let reduceMotion = UIAccessibility.isReduceMotionEnabled
+    searchTransitionToken += 1
+    let transitionToken = searchTransitionToken
+    searchAnimator?.stopAnimation(true)
+    searchAnimator = nil
+    layoutIfNeeded()
+    searchBar.layoutIfNeeded()
+
     let changes = {
       self.tabBar.alpha = entering ? 0 : 1
       self.searchBar.alpha = entering ? 1 : 0
-      self.addButton.transform = entering ? CGAffineTransform(scaleX: 0.94, y: 0.94) : .identity
-    }
-    let completion: (Bool) -> Void = { _ in
-      self.searchState = entering ? .searching : .normal
-      self.searchBar.isHidden = !entering
-      self.tabBar.isHidden = entering
-      self.addButton.transform = .identity
+      self.addButton.transform = entering
+        ? CGAffineTransform(scaleX: 0.96, y: 0.96)
+        : .identity
     }
     searchBar.isHidden = false
     tabBar.isHidden = false
-    if reduceMotion {
+    if UIAccessibility.isReduceMotionEnabled {
       changes()
-      completion(true)
+      finishSearchTransition(entering: entering, token: transitionToken)
     } else {
-      UIView.animate(
-        withDuration: 0.24,
-        delay: 0,
-        options: [.allowUserInteraction, .beginFromCurrentState, .curveEaseInOut],
-        animations: changes,
-        completion: completion
+      let animator = UIViewPropertyAnimator(
+        duration: searchAnimationDuration,
+        timingParameters: UISpringTimingParameters(dampingRatio: searchSpringDamping)
       )
+      animator.addAnimations(changes)
+      animator.addCompletion { [weak self] position in
+        guard position == .end else { return }
+        self?.finishSearchTransition(entering: entering, token: transitionToken)
+      }
+      searchAnimator = animator
+      animator.startAnimation()
     }
+  }
+
+  private func finishSearchTransition(entering: Bool, token: Int) {
+    guard token == searchTransitionToken else { return }
+    searchAnimator = nil
+    addButton.transform = .identity
+    if entering {
+      tabBar.alpha = 0
+      tabBar.isHidden = true
+      tabBar.isUserInteractionEnabled = false
+      searchBar.finalizeVisibleState()
+      searchState = .searching
+    } else {
+      searchBar.finalizeHiddenState()
+      tabBar.alpha = 1
+      tabBar.isHidden = false
+      tabBar.isUserInteractionEnabled = true
+      searchState = .normal
+    }
+    layoutIfNeeded()
   }
 
   @available(iOS 14.0, *)
