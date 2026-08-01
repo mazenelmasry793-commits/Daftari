@@ -2,10 +2,12 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:debt_tracker/core/platform/ios_navigation_channel.dart';
+import 'package:debt_tracker/core/platform/native_dashboard_channel.dart';
 import 'package:debt_tracker/core/platform/app_toast_service.dart';
 import 'package:debt_tracker/core/platform/native_sheets_channel.dart';
 import 'package:debt_tracker/data/models/entry.dart';
 import 'package:debt_tracker/features/dashboard/dashboard_screen.dart';
+import 'package:debt_tracker/features/entry_details/entry_details_screen.dart';
 import 'package:debt_tracker/features/entry_form/entry_form_screen.dart';
 import 'package:debt_tracker/features/owed_by_me/owed_by_me_screen.dart';
 import 'package:debt_tracker/features/owed_to_me/owed_to_me_screen.dart';
@@ -30,6 +32,7 @@ class _AppShellState extends ConsumerState<AppShell> {
   bool _searchActive = false;
   String _searchQuery = '';
   int _searchPreviousIndex = 0;
+  bool _nativeDetailOpening = false;
 
   final _titles = const <String>[
     'Dashboard',
@@ -47,11 +50,15 @@ class _AppShellState extends ConsumerState<AppShell> {
     iosNavigationChannel.onSearchQueryChanged = _onNativeSearchQueryChanged;
     iosNavigationChannel.onSearchActivated = _enterSearchFromNative;
     iosNavigationChannel.onSearchDismissed = _dismissSearch;
+    nativeDashboardChannel.onOpenEntryDetails = _openNativeEntryDetails;
     nativeSheetsChannel.onAddEntryTypeSelected = _handleNativeEntryType;
     nativeSheetsChannel.onNativeEntryFormSubmitted = _saveNativeEntry;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(iosNavigationChannel.setSelectedTab(_index));
       unawaited(iosNavigationChannel.setNavigationVisible(true));
+      ref.read(visibleEntriesProvider).whenData((entries) {
+        unawaited(nativeDashboardChannel.updateSnapshot(entries));
+      });
     });
   }
 
@@ -63,6 +70,7 @@ class _AppShellState extends ConsumerState<AppShell> {
     iosNavigationChannel.onSearchQueryChanged = null;
     iosNavigationChannel.onSearchActivated = null;
     iosNavigationChannel.onSearchDismissed = null;
+    nativeDashboardChannel.onOpenEntryDetails = null;
     nativeSheetsChannel.onAddEntryTypeSelected = null;
     nativeSheetsChannel.onNativeEntryFormSubmitted = null;
     unawaited(iosNavigationChannel.setNavigationVisible(false));
@@ -139,6 +147,28 @@ class _AppShellState extends ConsumerState<AppShell> {
     await Navigator.of(
       context,
     ).push(AppPageRoute(child: const SettingsScreen()));
+  }
+
+  Future<void> _openNativeEntryDetails(String id) async {
+    if (_nativeDetailOpening) return;
+    final entryId = int.tryParse(id);
+    if (entryId == null) return;
+    _nativeDetailOpening = true;
+    await iosNavigationChannel.setFlutterDetailVisible(true);
+    if (!mounted) {
+      _nativeDetailOpening = false;
+      return;
+    }
+    try {
+      await Navigator.of(
+        context,
+      ).push(AppPageRoute(child: EntryDetailsScreen(entryId: entryId)));
+    } finally {
+      if (mounted) {
+        await iosNavigationChannel.setFlutterDetailVisible(false);
+      }
+      _nativeDetailOpening = false;
+    }
   }
 
   void _openForm({EntryType? initialType, Entry? entry}) {
@@ -307,6 +337,12 @@ class _AppShellState extends ConsumerState<AppShell> {
   }
 
   Widget _buildShell(BuildContext context) {
+    ref.listen(visibleEntriesProvider, (_, next) {
+      next.whenData((entries) {
+        unawaited(nativeDashboardChannel.updateSnapshot(entries));
+      });
+    });
+
     final pages = <Widget>[
       DashboardScreen(onSearch: _openSearch, onAdd: _openAddChooser),
       OwedToMeScreen(onAdd: () => _openForm(initialType: EntryType.owedToMe)),

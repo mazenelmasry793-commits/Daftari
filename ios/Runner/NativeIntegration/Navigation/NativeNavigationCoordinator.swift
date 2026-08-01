@@ -8,9 +8,14 @@ final class NativeNavigationCoordinator {
   private var navigationView: NativeFloatingNavigationView?
   private var systemTabBarController: AnyObject?
   private var navigationBarHost: AnyObject?
+  private var dashboardBridge: AnyObject?
+  private var nativeDashboardHost: UIViewController?
   private var settingsButton: NativeSettingsButtonView?
-  private var navigationVisible = false
+  private var selectedTabIndex = 0
   private var searchModeActive = false
+  private var navigationVisible = true
+  private var flutterDetailVisible = false
+  private var nativeDashboardInstalled = false
   // Keeps the native control clear of the screen edge while preserving its
   // safe-area-aligned header position.
   private let settingsButtonTrailingInset: CGFloat = 8
@@ -33,7 +38,40 @@ final class NativeNavigationCoordinator {
       name: NativeChannelConstants.navigationChannel,
       binaryMessenger: rootViewController.binaryMessenger
     )
-    let settingsButton = NativeSettingsButtonView()
+    var settingsButton: NativeSettingsButtonView?
+    if #unavailable(iOS 26.0) {
+      settingsButton = NativeSettingsButtonView()
+    }
+    if #available(iOS 26.0, *) {
+      let dashboardBridge = NativeDashboardBridge(binaryMessenger: rootViewController.binaryMessenger)
+      let dashboardHost = NativeDashboardHostController(
+        dashboardBridge: dashboardBridge,
+        onAddEntryTypeSelected: { [weak self] type in
+          _ = self?.sheetCoordinator.presentNativeEntryForm(type: type)
+        },
+        onSettingsRequested: { [weak channel] in
+          channel?.invokeMethod(NativeChannelConstants.NavigationMethod.openSettings, arguments: nil)
+        },
+        onEntrySelected: { [weak self, weak dashboardBridge] id in
+          self?.flutterDetailVisible = true
+          self?.updateNativeSurfaceVisibility(animated: false)
+          dashboardBridge?.openEntryDetails(id: id)
+        }
+      )
+      self.dashboardBridge = dashboardBridge
+      self.nativeDashboardHost = dashboardHost
+      rootViewController.addChild(dashboardHost)
+      rootViewController.view.addSubview(dashboardHost.view)
+      dashboardHost.view.translatesAutoresizingMaskIntoConstraints = false
+      NSLayoutConstraint.activate([
+        dashboardHost.view.leadingAnchor.constraint(equalTo: rootViewController.view.leadingAnchor),
+        dashboardHost.view.trailingAnchor.constraint(equalTo: rootViewController.view.trailingAnchor),
+        dashboardHost.view.topAnchor.constraint(equalTo: rootViewController.view.topAnchor),
+        dashboardHost.view.bottomAnchor.constraint(equalTo: rootViewController.view.bottomAnchor),
+      ])
+      dashboardHost.didMove(toParent: rootViewController)
+      nativeDashboardInstalled = true
+    }
     let navigationView = NativeFloatingNavigationView(
       onTabSelected: { [weak channel] index in
         channel?.invokeMethod(
@@ -52,21 +90,27 @@ final class NativeNavigationCoordinator {
       },
       onSearchModeChanged: { [weak self] active in
         self?.searchModeActive = active
-        self?.updateSettingsVisibility(animated: true)
+        self?.updateNativeSurfaceVisibility(animated: true)
       }
     )
-    settingsButton.onSettingsRequested = { [weak channel] in
+    settingsButton?.onSettingsRequested = { [weak channel] in
       channel?.invokeMethod(NativeChannelConstants.NavigationMethod.openSettings, arguments: nil)
     }
     if #available(iOS 26.0, *) {
       let systemTabs = DaftariSystemTabBarController(
-        onTabSelected: { [weak channel] index in
+        onTabSelected: { [weak self, weak channel] index in
+          self?.selectedTabIndex = index
+          self?.searchModeActive = false
+          self?.updateNativeSurfaceVisibility(animated: true)
           channel?.invokeMethod(
             NativeChannelConstants.NavigationMethod.nativeTabSelected,
             arguments: ["index": index]
           )
         },
-        onSearchActivated: { [weak channel] in
+        onSearchActivated: { [weak self, weak channel] in
+          self?.selectedTabIndex = 4
+          self?.searchModeActive = true
+          self?.updateNativeSurfaceVisibility(animated: true)
           channel?.invokeMethod("nativeSearchActivated", arguments: nil)
         },
         onSearchQueryChanged: { [weak channel] query in
@@ -77,7 +121,7 @@ final class NativeNavigationCoordinator {
         },
         onSearchModeChanged: { [weak self] active in
           self?.searchModeActive = active
-          self?.updateSettingsVisibility(animated: true)
+          self?.updateNativeSurfaceVisibility(animated: true)
         }
       )
       rootViewController.addChild(systemTabs.viewController)
@@ -110,6 +154,7 @@ final class NativeNavigationCoordinator {
       ])
       navigationBarHost.didMove(toParent: rootViewController)
       self.navigationBarHost = navigationBarHost
+      updateNativeSurfaceVisibility(animated: false)
     } else {
       rootViewController.view.addSubview(navigationView)
       navigationView.translatesAutoresizingMaskIntoConstraints = false
@@ -121,16 +166,18 @@ final class NativeNavigationCoordinator {
       ])
     }
 
-    rootViewController.view.addSubview(settingsButton)
-    NSLayoutConstraint.activate([
-      settingsButton.trailingAnchor.constraint(
-        equalTo: rootViewController.view.trailingAnchor,
-        constant: -settingsButtonTrailingInset
-      ),
-      settingsButton.centerYAnchor.constraint(equalTo: rootViewController.view.safeAreaLayoutGuide.topAnchor, constant: 28),
-      settingsButton.widthAnchor.constraint(equalToConstant: 48),
-      settingsButton.heightAnchor.constraint(equalToConstant: 48),
-    ])
+    if let settingsButton {
+      rootViewController.view.addSubview(settingsButton)
+      NSLayoutConstraint.activate([
+        settingsButton.trailingAnchor.constraint(
+          equalTo: rootViewController.view.trailingAnchor,
+          constant: -settingsButtonTrailingInset
+        ),
+        settingsButton.centerYAnchor.constraint(equalTo: rootViewController.view.safeAreaLayoutGuide.topAnchor, constant: 28),
+        settingsButton.widthAnchor.constraint(equalToConstant: 48),
+        settingsButton.heightAnchor.constraint(equalToConstant: 48),
+      ])
+    }
 
     channel.setMethodCallHandler { [weak self, weak navigationView, weak settingsButton] call, result in
       let arguments = call.arguments as? [String: Any]
@@ -139,7 +186,9 @@ final class NativeNavigationCoordinator {
         navigationView?.setSelectedTab(arguments?["index"] as? Int ?? 0)
         if #available(iOS 26.0, *) {
           if let index = arguments?["index"] as? Int {
-          (self?.systemTabBarController as? DaftariSystemTabBarController)?.setSelectedTab(index)
+            self?.selectedTabIndex = index
+            (self?.systemTabBarController as? DaftariSystemTabBarController)?.setSelectedTab(index)
+            self?.updateNativeSurfaceVisibility(animated: false)
           }
         }
         result(nil)
@@ -150,7 +199,7 @@ final class NativeNavigationCoordinator {
         if #available(iOS 26.0, *) {
           (self?.systemTabBarController as? DaftariSystemTabBarController)?.setNavigationVisible(visible, animated: true)
         }
-        self?.updateSettingsVisibility(animated: true)
+        self?.updateNativeSurfaceVisibility(animated: true)
         result(nil)
       case "setSearchVisible":
         navigationView?.setSearchVisible(arguments?["visible"] as? Bool ?? false)
@@ -167,6 +216,11 @@ final class NativeNavigationCoordinator {
           navigationView?.setSearchVisible(true)
         }
         result(nil)
+      case "setFlutterDetailVisible":
+        let visible = arguments?["visible"] as? Bool ?? true
+        self?.flutterDetailVisible = visible
+        self?.updateNativeSurfaceVisibility(animated: false)
+        result(nil)
       default:
         result(FlutterMethodNotImplemented)
       }
@@ -175,16 +229,59 @@ final class NativeNavigationCoordinator {
     self.channel = channel
     self.navigationView = navigationView
     self.settingsButton = settingsButton
+    // Establish the initial native surface immediately. Flutter still owns
+    // subsequent visibility changes through the existing navigation channel.
+    if #available(iOS 26.0, *) {
+      navigationVisible = true
+      (systemTabBarController as? DaftariSystemTabBarController)?.setNavigationVisible(true, animated: false)
+      if let systemTabs = systemTabBarController as? DaftariSystemTabBarController {
+        rootViewController.view.bringSubviewToFront(systemTabs.viewController.view)
+        if let navigationBarHost = navigationBarHost as? DaftariNavigationBarHostViewController {
+          rootViewController.view.bringSubviewToFront(navigationBarHost.view)
+        }
+      }
+      updateNativeSurfaceVisibility(animated: false)
+    }
   }
 
-  private func updateSettingsVisibility(animated: Bool) {
+  private func updateNativeSurfaceVisibility(animated: Bool) {
     if #available(iOS 26.0, *) {
+      let homeSelected = selectedTabIndex == 0
+      let shouldShowNativeDashboard =
+        nativeDashboardInstalled &&
+        navigationVisible &&
+        homeSelected &&
+        !searchModeActive &&
+        !flutterDetailVisible
+      let shouldShowLegacyHeader =
+        navigationVisible &&
+        !homeSelected &&
+        !searchModeActive &&
+        !flutterDetailVisible
+
+      nativeDashboardHost?.view.isHidden = !shouldShowNativeDashboard
       (navigationBarHost as? DaftariNavigationBarHostViewController)?.setVisible(
+        shouldShowLegacyHeader,
+        animated: animated
+      )
+
+      #if DEBUG
+      NSLog(
+        "Daftari native surfaces tab=%d search=%@ navigation=%@ detail=%@ dashboard=%@ header=%@ tabBarHidden=%@",
+        selectedTabIndex,
+        String(searchModeActive),
+        String(navigationVisible),
+        String(flutterDetailVisible),
+        String(shouldShowNativeDashboard),
+        String(shouldShowLegacyHeader),
+        String((systemTabBarController as? DaftariSystemTabBarController)?.viewController.isTabBarHidden ?? false)
+      )
+      #endif
+    } else {
+      settingsButton?.setVisible(
         navigationVisible && !searchModeActive,
         animated: animated
       )
-    } else {
-      settingsButton?.setVisible(navigationVisible && !searchModeActive, animated: animated)
     }
   }
 

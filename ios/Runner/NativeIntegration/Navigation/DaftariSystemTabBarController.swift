@@ -69,6 +69,7 @@ final class DaftariSystemTabBarController: NSObject, UITabBarControllerDelegate 
 
     let controller = DaftariPassthroughTabBarController(tabs: allTabs)
     controller.mode = .tabBar
+    controller.selectedTab = allTabs[0]
     if #available(iOS 26.0, *) {
       controller.tabBarMinimizeBehavior = .never
     }
@@ -88,7 +89,7 @@ final class DaftariSystemTabBarController: NSObject, UITabBarControllerDelegate 
 
   func setNavigationVisible(_ visible: Bool, animated: Bool) {
     let update = {
-      self.viewController.isTabBarHidden = !visible
+      self.viewController.setTabBarHidden(!visible, animated: false)
       self.viewController.view.isUserInteractionEnabled = visible
     }
     guard animated, !UIAccessibility.isReduceMotionEnabled else {
@@ -136,7 +137,21 @@ final class DaftariSystemTabBarController: NSObject, UITabBarControllerDelegate 
 @available(iOS 26.0, *)
 final class DaftariPassthroughTabBarController: UITabBarController {
   override func loadView() {
-    view = DaftariTabBarPassthroughView()
+    // Keep UIKit's internal UITabBarController hierarchy intact. Replacing
+    // its root view directly leaves the system tab bar's private container
+    // without the layout context it expects and can place the bar off-screen.
+    super.loadView()
+    guard let systemView = view else { return }
+    let passthroughView = DaftariTabBarPassthroughView(frame: systemView.bounds)
+    passthroughView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+    passthroughView.backgroundColor = .clear
+    passthroughView.isOpaque = false
+    systemView.frame = passthroughView.bounds
+    systemView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+    systemView.backgroundColor = .clear
+    systemView.isOpaque = false
+    passthroughView.addSubview(systemView)
+    view = passthroughView
   }
 
   override func viewDidLayoutSubviews() {

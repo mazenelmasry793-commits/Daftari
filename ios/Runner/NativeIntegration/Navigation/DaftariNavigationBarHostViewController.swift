@@ -68,9 +68,11 @@ final class DaftariNavigationBarHostViewController: UIViewController {
   func setVisible(_ visible: Bool, animated: Bool) {
     isVisible = visible
     let update = {
+      self.view.isHidden = !visible
       self.headerViewController.navigationItem.rightBarButtonItems = visible
         ? [self.settingsItem, self.addItem]
         : nil
+      self.embeddedNavigationController.setNavigationBarHidden(!visible, animated: false)
       self.embeddedNavigationController.navigationBar.isUserInteractionEnabled = visible
     }
     guard animated, !UIAccessibility.isReduceMotionEnabled else {

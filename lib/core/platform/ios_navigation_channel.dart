@@ -84,6 +84,15 @@ class IosNavigationChannel {
     });
   }
 
+  /// Reports whether a Flutter detail route is covering the native Home.
+  /// This never controls the Apple system tab bar.
+  Future<void> setFlutterDetailVisible(bool visible) async {
+    if (!_isIos()) return;
+    await _channel.invokeMethod<void>('setFlutterDetailVisible', {
+      'visible': visible,
+    });
+  }
+
   Future<void> setSearchVisible(bool visible) async {
     if (!_isIos()) return;
     await _channel.invokeMethod<void>('setSearchVisible', {'visible': visible});
