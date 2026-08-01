@@ -19,7 +19,6 @@
 		A10000010000000000000004 /* NativeFloatingNavigationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000020000000000000004 /* NativeFloatingNavigationView.swift */; };
 		A10000010000000000000005 /* NativeSheetCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000020000000000000005 /* NativeSheetCoordinator.swift */; };
 		A10000010000000000000006 /* NativeAddEntryOption.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000020000000000000006 /* NativeAddEntryOption.swift */; };
-		A10000010000000000000007 /* NativeAddEntrySheetViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000020000000000000007 /* NativeAddEntrySheetViewController.swift */; };
 		A10000010000000000000008 /* NativeDatePickerViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000020000000000000008 /* NativeDatePickerViewController.swift */; };
 		A10000010000000000000009 /* NativeEntryFormCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000020000000000000009 /* NativeEntryFormCoordinator.swift */; };
 		A10000010000000000000010 /* NativeEntryFormViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000020000000000000010 /* NativeEntryFormViewController.swift */; };
@@ -72,7 +71,6 @@
 		A10000020000000000000004 /* NativeFloatingNavigationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeFloatingNavigationView.swift; sourceTree = "<group>"; };
 		A10000020000000000000005 /* NativeSheetCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeSheetCoordinator.swift; sourceTree = "<group>"; };
 		A10000020000000000000006 /* NativeAddEntryOption.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeAddEntryOption.swift; sourceTree = "<group>"; };
-		A10000020000000000000007 /* NativeAddEntrySheetViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeAddEntrySheetViewController.swift; sourceTree = "<group>"; };
 		A10000020000000000000008 /* NativeDatePickerViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeDatePickerViewController.swift; sourceTree = "<group>"; };
 		A10000020000000000000009 /* NativeEntryFormCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeEntryFormCoordinator.swift; sourceTree = "<group>"; };
 		A10000020000000000000010 /* NativeEntryFormViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeEntryFormViewController.swift; sourceTree = "<group>"; };
@@ -207,7 +205,6 @@
 			children = (
 				A10000020000000000000005 /* NativeSheetCoordinator.swift */,
 				A10000020000000000000006 /* NativeAddEntryOption.swift */,
-				A10000020000000000000007 /* NativeAddEntrySheetViewController.swift */,
 				A10000020000000000000008 /* NativeDatePickerViewController.swift */,
 			);
 			path = Sheets;
@@ -464,7 +461,6 @@
 				A10000010000000000000004 /* NativeFloatingNavigationView.swift in Sources */,
 				A10000010000000000000005 /* NativeSheetCoordinator.swift in Sources */,
 				A10000010000000000000006 /* NativeAddEntryOption.swift in Sources */,
-				A10000010000000000000007 /* NativeAddEntrySheetViewController.swift in Sources */,
 				A10000010000000000000008 /* NativeDatePickerViewController.swift in Sources */,
 				A10000010000000000000009 /* NativeEntryFormCoordinator.swift in Sources */,
 				A10000010000000000000010 /* NativeEntryFormViewController.swift in Sources */,

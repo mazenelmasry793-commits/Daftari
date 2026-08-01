@@ -2,16 +2,19 @@ import UIKit
 
 final class NativeFloatingNavigationView: UIView, UITabBarDelegate {
   private let onTabSelected: (Int) -> Void
-  private let onAddEntry: () -> Void
+  private let onAddEntryTypeSelected: (String) -> Void
   private let tabBar = UITabBar()
   private let addButton = UIButton(type: .system)
   private let rowContainer = UIView()
+  private var addMenuInteraction: AnyObject?
+  private var currentAddMenu: UIMenu?
+  private var isSelectingAddMenuAction = false
   private var wantsVisible = false
   private var keyboardVisible = false
 
-  init(onTabSelected: @escaping (Int) -> Void, onAddEntry: @escaping () -> Void) {
+  init(onTabSelected: @escaping (Int) -> Void, onAddEntryTypeSelected: @escaping (String) -> Void) {
     self.onTabSelected = onTabSelected
-    self.onAddEntry = onAddEntry
+    self.onAddEntryTypeSelected = onAddEntryTypeSelected
     super.init(frame: .zero)
     isUserInteractionEnabled = false
     isHidden = true
@@ -59,6 +62,13 @@ final class NativeFloatingNavigationView: UIView, UITabBarDelegate {
     addButton.accessibilityLabel = "Add entry"
     addButton.accessibilityHint = "Opens the new entry menu"
     addButton.addTarget(self, action: #selector(addTapped), for: .touchUpInside)
+    if #available(iOS 16.0, *) {
+      let interaction = UIEditMenuInteraction(delegate: self)
+      addMenuInteraction = interaction
+      addInteraction(interaction)
+    } else {
+      addButton.addTarget(self, action: #selector(addMenuUnsupported), for: .touchUpInside)
+    }
 
     let plusConfig = UIImage.SymbolConfiguration(pointSize: 22, weight: .medium)
     if #available(iOS 26.0, *) {
@@ -105,7 +115,28 @@ final class NativeFloatingNavigationView: UIView, UITabBarDelegate {
 
   @objc private func addTapped() {
     UIImpactFeedbackGenerator(style: .light).impactOccurred()
-    onAddEntry()
+    if #available(iOS 16.0, *) {
+      presentAddMenu()
+    }
+  }
+
+  func presentAddMenu() {
+    if #available(iOS 16.0, *) {
+      let buttonFrame = addButton.convert(addButton.bounds, to: self)
+      let sourcePoint = CGPoint(x: buttonFrame.midX, y: buttonFrame.minY - 8)
+      let configuration = UIEditMenuConfiguration(
+        identifier: "nativeAddEntryMenu",
+        sourcePoint: sourcePoint
+      )
+      guard let interaction = addMenuInteraction as? UIEditMenuInteraction else { return }
+      interaction.presentEditMenu(with: configuration)
+    } else {
+      addMenuUnsupported()
+    }
+  }
+
+  @objc private func addMenuUnsupported() {
+    onAddEntryTypeSelected(NativeAddEntryOption.owedToMe.rawValue)
   }
 
   func setSelectedTab(_ index: Int) {
@@ -116,6 +147,53 @@ final class NativeFloatingNavigationView: UIView, UITabBarDelegate {
   func setNavigationVisible(_ visible: Bool) {
     wantsVisible = visible
     updateVisibility(animated: true)
+  }
+
+  @available(iOS 16.0, *)
+  private func makeAddMenu() -> UIMenu {
+    let actions = NativeAddEntryOption.allCases.map { option in
+      let action = UIAction(
+        title: option.title,
+        image: UIImage(systemName: option.sfSymbolName)
+      ) { [weak self] _ in
+        guard let self, !self.isSelectingAddMenuAction else { return }
+        self.isSelectingAddMenuAction = true
+        (self.addMenuInteraction as? UIEditMenuInteraction)?.dismissMenu()
+        DispatchQueue.main.async { [weak self] in
+          self?.onAddEntryTypeSelected(option.rawValue)
+        }
+      }
+      if #available(iOS 15.0, *) {
+        action.subtitle = option.subtitle
+      }
+      return action
+    }
+    return UIMenu(title: "", children: actions)
+  }
+
+  @available(iOS 16.0, *)
+  func editMenuInteraction(
+    _ interaction: UIEditMenuInteraction,
+    menuFor configuration: UIEditMenuConfiguration,
+    suggestedActions: [UIMenuElement]
+  ) -> UIMenu? {
+    let menu = makeAddMenu()
+    currentAddMenu = menu
+    return menu
+  }
+
+  @available(iOS 16.0, *)
+  func editMenuInteraction(
+    _ interaction: UIEditMenuInteraction,
+    targetRectFor configuration: UIEditMenuConfiguration
+  ) -> CGRect {
+    addButton.convert(addButton.bounds, to: self)
+  }
+
+  @available(iOS 16.0, *)
+  func editMenuInteraction(_ interaction: UIEditMenuInteraction, didDismiss menu: UIMenu) {
+    isSelectingAddMenuAction = false
+    currentAddMenu = nil
   }
 
   private func observeKeyboard() {
@@ -148,3 +226,6 @@ final class NativeFloatingNavigationView: UIView, UITabBarDelegate {
     UIView.animate(withDuration: 0.2, animations: changes)
   }
 }
+
+@available(iOS 16.0, *)
+extension NativeFloatingNavigationView: UIEditMenuInteractionDelegate {}

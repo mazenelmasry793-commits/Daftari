@@ -70,30 +70,27 @@ final class NativeEntryFormViewController: UIViewController, UITextFieldDelegate
     configureTextField(titleField, placeholder: "Who owes what?", keyboardType: .default)
     titleField.returnKeyType = .next
     titleField.delegate = self
-    titleField.backgroundColor = .systemBackground
     contentStack.addArrangedSubview(fieldContainer(label: "Title", field: titleField))
 
     configureTextField(amountField, placeholder: "0.00", keyboardType: .decimalPad)
     amountField.delegate = self
-    amountField.backgroundColor = .systemBackground
     contentStack.addArrangedSubview(fieldContainer(label: entryType.amountPlaceholder, field: amountField))
 
     let noteLabel = formLabel("Note")
     contentStack.addArrangedSubview(noteLabel)
     noteView.font = .preferredFont(forTextStyle: .body)
-    noteView.backgroundColor = .secondarySystemBackground
-    noteView.layer.cornerRadius = 12
-    noteView.textContainerInset = UIEdgeInsets(top: 12, left: 10, bottom: 12, right: 10)
+    applyMinimalSurfaceStyle(to: noteView, cornerRadius: 12)
+    noteView.textContainerInset = UIEdgeInsets(top: 10, left: 10, bottom: 10, right: 10)
     noteView.textContainer.lineFragmentPadding = 0
     noteView.delegate = self
-    noteView.heightAnchor.constraint(equalToConstant: 120).isActive = true
+    noteView.heightAnchor.constraint(equalToConstant: 96).isActive = true
     noteView.addSubview(notePlaceholder)
     notePlaceholder.text = "Add a reminder, explanation, or rough calculation."
     notePlaceholder.textColor = .secondaryLabel
     notePlaceholder.font = .preferredFont(forTextStyle: .body)
     notePlaceholder.translatesAutoresizingMaskIntoConstraints = false
     NSLayoutConstraint.activate([
-      notePlaceholder.topAnchor.constraint(equalTo: noteView.topAnchor, constant: 12),
+      notePlaceholder.topAnchor.constraint(equalTo: noteView.topAnchor, constant: 10),
       notePlaceholder.leadingAnchor.constraint(equalTo: noteView.leadingAnchor, constant: 10),
       notePlaceholder.trailingAnchor.constraint(lessThanOrEqualTo: noteView.trailingAnchor, constant: -10),
     ])
@@ -115,7 +112,7 @@ final class NativeEntryFormViewController: UIViewController, UITextFieldDelegate
       var configuration = UIButton.Configuration.filled()
       configuration.title = "Save"
       configuration.cornerStyle = .medium
-      configuration.baseBackgroundColor = .systemBlue
+      configuration.baseBackgroundColor = .black
       configuration.baseForegroundColor = .white
       configuration.contentInsets = NSDirectionalEdgeInsets(top: 13, leading: 20, bottom: 13, trailing: 20)
       saveButton.configuration = configuration
@@ -123,8 +120,8 @@ final class NativeEntryFormViewController: UIViewController, UITextFieldDelegate
       saveButton.setTitle("Save", for: .normal)
       saveButton.titleLabel?.font = .preferredFont(forTextStyle: .headline)
       saveButton.setTitleColor(.white, for: .normal)
-      saveButton.backgroundColor = .systemBlue
-      saveButton.layer.cornerRadius = 12
+      saveButton.backgroundColor = .black
+      saveButton.layer.cornerRadius = 8
       saveButton.contentEdgeInsets = UIEdgeInsets(top: 13, left: 20, bottom: 13, right: 20)
     }
     saveButton.addTarget(self, action: #selector(saveTapped), for: .touchUpInside)
@@ -149,10 +146,23 @@ final class NativeEntryFormViewController: UIViewController, UITextFieldDelegate
   private func configureTextField(_ field: UITextField, placeholder: String, keyboardType: UIKeyboardType) {
     field.placeholder = placeholder
     field.font = .preferredFont(forTextStyle: .body)
-    field.borderStyle = .roundedRect
+    field.borderStyle = .none
+    applyMinimalSurfaceStyle(to: field, cornerRadius: 12)
     field.keyboardType = keyboardType
     field.clearButtonMode = .whileEditing
+    let paddingView = UIView(frame: CGRect(x: 0, y: 0, width: 10, height: 1))
+    field.leftView = paddingView
+    field.leftViewMode = .always
     field.addTarget(self, action: #selector(textChanged), for: .editingChanged)
+    field.heightAnchor.constraint(equalToConstant: 52).isActive = true
+  }
+
+  private func applyMinimalSurfaceStyle(to view: UIView, cornerRadius: CGFloat) {
+    view.backgroundColor = .clear
+    view.layer.cornerRadius = cornerRadius
+    view.layer.borderWidth = 0.5
+    view.layer.borderColor = UIColor.separator.cgColor
+    view.layer.masksToBounds = true
   }
 
   private func fieldContainer(label: String, field: UITextField) -> UIView {

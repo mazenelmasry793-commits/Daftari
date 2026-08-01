@@ -10,6 +10,9 @@ final class NativeNavigationCoordinator {
   init(rootViewController: FlutterViewController, sheetCoordinator: NativeSheetCoordinator) {
     self.rootViewController = rootViewController
     self.sheetCoordinator = sheetCoordinator
+    self.sheetCoordinator.onRequestAddEntryMenu = { [weak self] in
+      self?.navigationView?.presentAddMenu()
+    }
   }
 
   func start() {
@@ -26,11 +29,8 @@ final class NativeNavigationCoordinator {
           arguments: ["index": index]
         )
       },
-      onAddEntry: { [weak self, weak channel] in
-        guard let self else { return }
-        if !self.sheetCoordinator.presentAddEntryChooser() {
-          channel?.invokeMethod(NativeChannelConstants.NavigationMethod.openAddEntry, arguments: nil)
-        }
+      onAddEntryTypeSelected: { [weak self] type in
+        _ = self?.sheetCoordinator.presentNativeEntryForm(type: type)
       }
     )
 

@@ -3,7 +3,6 @@ import UIKit
 
 final class NativeSheetCoordinator: NSObject, UIAdaptivePresentationControllerDelegate {
   private enum PresentationKind {
-    case addEntry
     case datePicker(completion: (Date?) -> Void)
   }
 
@@ -12,6 +11,7 @@ final class NativeSheetCoordinator: NSObject, UIAdaptivePresentationControllerDe
   private let entryFormCoordinator = NativeEntryFormCoordinator()
   private var presentationKind: PresentationKind?
   private weak var currentPresenter: UIViewController?
+  var onRequestAddEntryMenu: (() -> Void)?
 
   var isPresented: Bool { presentationKind != nil }
 
@@ -27,37 +27,10 @@ final class NativeSheetCoordinator: NSObject, UIAdaptivePresentationControllerDe
     }
   }
 
-  func presentAddEntryChooser() -> Bool {
-    guard let presenter = topViewController(), presentAddEntryChooser(from: presenter) else { return false }
-    return true
-  }
-
-  @discardableResult
-  func presentAddEntryChooser(from presenter: UIViewController) -> Bool {
-    guard presentationKind == nil else { return false }
-    presentationKind = .addEntry
-    currentPresenter = presenter
-
-    let sheetViewController = NativeAddEntrySheetViewController { [weak self] option in
-      self?.select(option)
-    }
-    configureSheet(sheetViewController, detentHeight: 350, identifier: "addEntryChooser")
-    sheetViewController.presentationController?.delegate = self
-    presenter.present(sheetViewController, animated: true) { [weak self, weak sheetViewController] in
-      guard let self, let sheetViewController, sheetViewController.presentingViewController != nil else {
-        self?.resetPresentation()
-        return
-      }
-    }
-    return true
-  }
-
   private func handle(call: FlutterMethodCall, result: @escaping FlutterResult) {
     switch call.method {
     case NativeChannelConstants.SheetMethod.showAddEntryChooser:
-      if let presenter = topViewController() {
-        _ = presentAddEntryChooser(from: presenter)
-      }
+      onRequestAddEntryMenu?()
       result(nil)
     case NativeChannelConstants.SheetMethod.showNativeDatePicker:
       let arguments = call.arguments as? [String: Any]
@@ -89,33 +62,18 @@ final class NativeSheetCoordinator: NSObject, UIAdaptivePresentationControllerDe
       }
     case NativeChannelConstants.SheetMethod.showNativeEntryForm:
       let arguments = call.arguments as? [String: Any]
-      guard let type = arguments?["type"] as? String,
-            let presenter = topViewController(),
-            let binaryMessenger,
-            entryFormCoordinator.present(type: type, from: presenter, messenger: binaryMessenger) else {
-        result(nil)
-        return
-      }
+      if let type = arguments?["type"] as? String { _ = presentNativeEntryForm(type: type) }
       result(nil)
     default:
       result(FlutterMethodNotImplemented)
     }
   }
 
-  private func select(_ option: NativeAddEntryOption) {
-    guard case .addEntry = presentationKind else { return }
-    guard let presenter = currentPresenter ?? topViewController() else {
-      resetPresentation()
-      return
-    }
-    presenter.dismiss(animated: true) { [weak self] in
-      guard let self, case .addEntry = self.presentationKind else { return }
-      self.resetPresentation()
-      self.sheetsChannel?.invokeMethod(
-        NativeChannelConstants.SheetMethod.addEntryTypeSelected,
-        arguments: ["type": option.rawValue]
-      )
-    }
+  @discardableResult
+  func presentNativeEntryForm(type: String) -> Bool {
+    guard let presenter = topViewController(),
+          let binaryMessenger else { return false }
+    return entryFormCoordinator.present(type: type, from: presenter, messenger: binaryMessenger)
   }
 
   private func completeDatePicker(selectedDate: Date?) {
@@ -143,9 +101,6 @@ final class NativeSheetCoordinator: NSObject, UIAdaptivePresentationControllerDe
 
   func presentationControllerDidDismiss(_ presentationController: UIPresentationController) {
     switch presentationKind {
-    case .addEntry:
-      resetPresentation()
-      sheetsChannel?.invokeMethod(NativeChannelConstants.SheetMethod.addEntryChooserDismissed, arguments: nil)
     case .datePicker(let completion):
       resetPresentation()
       completion(nil)
