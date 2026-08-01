@@ -63,13 +63,8 @@ struct NativeDashboardView: View {
           )
         }
 
-        HStack(alignment: .firstTextBaseline) {
-          Text("Recent Entries")
-            .font(.title2.weight(.bold))
-          Spacer()
-          Text("\(snapshot.recentCount) \(snapshot.recentCount == 1 ? "item" : "items")")
-            .foregroundStyle(.secondary)
-        }
+        Text("Recent Entries")
+          .font(.title2.weight(.bold))
 
         if snapshot.recentEntries.isEmpty {
           ContentUnavailableView("No recent entries yet", systemImage: "wallet.pass")
