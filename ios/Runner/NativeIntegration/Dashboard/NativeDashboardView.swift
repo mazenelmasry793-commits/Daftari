@@ -50,13 +50,15 @@ struct NativeDashboardView: View {
       LazyVStack(alignment: .leading, spacing: 14) {
         HStack(spacing: 12) {
           NativeDashboardSummaryCard(
-            title: "Total Money Owed To Me",
+            title: "Owed To Me",
             amount: snapshot.owedToMeText,
+            entryCount: snapshot.owedToMeEntryCount,
             type: .owedToMe
           )
           NativeDashboardSummaryCard(
-            title: "Total Money I Owe",
+            title: "I Owe",
             amount: snapshot.iOweText,
+            entryCount: snapshot.iOweEntryCount,
             type: .owedByMe
           )
         }
@@ -109,6 +111,7 @@ private enum NativeDashboardCardType {
 private struct NativeDashboardSummaryCard: View {
   let title: String
   let amount: String
+  let entryCount: Int
   let type: NativeDashboardCardType
 
   private var colors: [Color] {
@@ -118,15 +121,15 @@ private struct NativeDashboardSummaryCard: View {
   }
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 12) {
+    VStack(alignment: .leading, spacing: 8) {
       Image(systemName: type == .owedToMe ? "arrow.down.left" : "arrow.up.right")
-        .font(.title2.weight(.semibold))
+        .font(.headline.weight(.semibold))
         .foregroundStyle(.white)
         .frame(width: 48, height: 48)
         .background(.white.opacity(0.18), in: Circle())
-      Spacer(minLength: 8)
+      Spacer(minLength: 2)
       Text(title)
-        .font(.subheadline)
+        .font(.headline.weight(.medium))
         .foregroundStyle(.white.opacity(0.92))
         .lineLimit(2)
       Text(amount)
@@ -134,10 +137,33 @@ private struct NativeDashboardSummaryCard: View {
         .foregroundStyle(.white)
         .minimumScaleFactor(0.65)
         .lineLimit(1)
+      Divider()
+        .overlay(.white.opacity(0.42))
+      Label("\(entryCount) \(entryCount == 1 ? "entry" : "entries")", systemImage: "note.text")
+        .font(.subheadline)
+        .foregroundStyle(.white.opacity(0.94))
     }
     .padding(16)
-    .frame(maxWidth: .infinity, minHeight: 220, alignment: .leading)
-    .background(LinearGradient(colors: colors, startPoint: .topLeading, endPoint: .bottomTrailing), in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+    .frame(maxWidth: .infinity, minHeight: 180, alignment: .leading)
+    .background(
+      LinearGradient(colors: colors, startPoint: .topLeading, endPoint: .bottomTrailing),
+      in: RoundedRectangle(cornerRadius: 22, style: .continuous)
+    )
+    .overlay(alignment: .bottomTrailing) {
+      ZStack {
+        Circle()
+          .stroke(.white.opacity(0.11), lineWidth: 22)
+          .frame(width: 220, height: 220)
+          .offset(x: 88, y: 94)
+        Circle()
+          .stroke(.white.opacity(0.09), lineWidth: 18)
+          .frame(width: 150, height: 150)
+          .offset(x: 72, y: 82)
+      }
+      .allowsHitTesting(false)
+    }
+    .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+    .shadow(color: .black.opacity(0.10), radius: 8, y: 4)
   }
 }
 
@@ -160,29 +186,46 @@ private struct NativeDashboardEntryRow: View {
         .foregroundStyle(tint)
         .frame(width: 52, height: 52)
         .background(tint.opacity(0.12), in: Circle())
-      VStack(alignment: .leading, spacing: 4) {
+      VStack(alignment: .leading, spacing: 3) {
         Text(entry.title)
-          .font(.headline.weight(.semibold))
+          .font(.subheadline.weight(.semibold))
           .lineLimit(1)
         Text(entry.typeLabel)
-          .font(.subheadline)
+          .font(.caption)
           .foregroundStyle(tint)
+          .padding(.horizontal, 8)
+          .padding(.vertical, 3)
+          .background(tint.opacity(0.12), in: Capsule())
+        if entry.type == "scratchpad", !entry.previewText.isEmpty {
+          Text(entry.previewText)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+            .truncationMode(.tail)
+        }
         Label(entry.dateText, systemImage: "calendar")
           .font(.caption)
           .foregroundStyle(.secondary)
       }
       Spacer(minLength: 4)
-      Text(entry.amountText)
-        .font(.headline.weight(.bold))
-        .foregroundStyle(tint)
-        .lineLimit(1)
-        .minimumScaleFactor(0.65)
+      if entry.type != "scratchpad" {
+        Text(entry.amountText)
+          .font(.subheadline.weight(.semibold))
+          .foregroundStyle(tint)
+          .lineLimit(1)
+          .minimumScaleFactor(0.65)
+      }
       Image(systemName: "chevron.right")
+        .font(.caption.weight(.bold))
         .foregroundStyle(.tertiary)
     }
-    .padding(.horizontal, 16)
-    .padding(.vertical, 12)
+    .padding(.horizontal, 12)
+    .padding(.vertical, 10)
     .accessibilityElement(children: .combine)
-    .accessibilityLabel("\(entry.title), \(entry.typeLabel), \(entry.amountText)")
+    .accessibilityLabel(
+      entry.type == "scratchpad"
+        ? "\(entry.title), Note, \(entry.previewText), \(entry.dateText)"
+        : "\(entry.title), \(entry.typeLabel), \(entry.amountText), \(entry.dateText)"
+    )
   }
 }

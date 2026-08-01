@@ -6,6 +6,7 @@ struct NativeDashboardEntry: Identifiable, Equatable {
   let type: String
   let amountText: String
   let dateText: String
+  let previewText: String
 
   var typeLabel: String {
     switch type {
@@ -42,6 +43,8 @@ struct NativeDashboardSnapshot: Equatable {
   let schemaVersion: Int
   let owedToMeText: String
   let iOweText: String
+  let owedToMeEntryCount: Int
+  let iOweEntryCount: Int
   let recentCount: Int
   let recentEntries: [NativeDashboardEntry]
 }

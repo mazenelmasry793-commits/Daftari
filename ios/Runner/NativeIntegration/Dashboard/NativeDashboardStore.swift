@@ -14,6 +14,8 @@ final class NativeDashboardStore: ObservableObject {
           schemaVersion == 1,
           let owedToMeText = payload["owedToMeText"] as? String,
           let iOweText = payload["iOweText"] as? String,
+          let owedToMeEntryCount = payload["owedToMeEntryCount"] as? Int,
+          let iOweEntryCount = payload["iOweEntryCount"] as? Int,
           let recentCount = payload["totalRecentCount"] as? Int,
           let rawEntries = payload["recentEntries"] as? [[String: Any]] else {
       errorMessage = "Unsupported dashboard snapshot"
@@ -31,9 +33,10 @@ final class NativeDashboardStore: ObservableObject {
       return NativeDashboardEntry(
         id: id,
         title: title,
-        type: type,
-        amountText: amountText,
-        dateText: dateText
+            type: type,
+            amountText: amountText,
+            dateText: dateText,
+            previewText: raw["previewText"] as? String ?? ""
       )
     }
 
@@ -42,6 +45,8 @@ final class NativeDashboardStore: ObservableObject {
       schemaVersion: schemaVersion,
       owedToMeText: owedToMeText,
       iOweText: iOweText,
+      owedToMeEntryCount: owedToMeEntryCount,
+      iOweEntryCount: iOweEntryCount,
       recentCount: recentCount,
       recentEntries: entries
     )
