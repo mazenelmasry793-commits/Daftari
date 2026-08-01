@@ -4,6 +4,8 @@ final class NativeEntriesStore: ObservableObject {
   @Published private(set) var entries: [NativeEntryListItem] = []
   @Published private(set) var owedToMeTotalText = "€ 0.00"
   @Published private(set) var owedToMeEntryCount = 0
+  @Published private(set) var iOweTotalText = "€ 0.00"
+  @Published private(set) var iOweEntryCount = 0
   @Published private(set) var errorMessage: String?
 
   func apply(payload: Any?) {
@@ -30,6 +32,9 @@ final class NativeEntriesStore: ObservableObject {
     owedToMeTotalText = payload["owedToMeText"] as? String ?? "€ 0.00"
     owedToMeEntryCount = payload["owedToMeEntryCount"] as? Int
       ?? entries.filter { $0.type == NativeEntryListType.owedToMe.rawValue }.count
+    iOweTotalText = payload["iOweText"] as? String ?? "€ 0.00"
+    iOweEntryCount = payload["iOweEntryCount"] as? Int
+      ?? entries.filter { $0.type == NativeEntryListType.owedByMe.rawValue }.count
     errorMessage = nil
   }
 

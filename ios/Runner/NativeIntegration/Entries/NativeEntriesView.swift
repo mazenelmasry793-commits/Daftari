@@ -15,6 +15,8 @@ struct NativeEntriesView: View {
       Group {
         if type == .owedToMe {
           owedToMeContent
+        } else if type == .owedByMe {
+          owedByMeContent
         } else {
           genericContent
         }
@@ -87,6 +89,42 @@ struct NativeEntriesView: View {
           }
           .padding(.top, 0)
           OwedToMeGroupedList(
+            entries: filteredEntries,
+            onEntrySelected: onEntrySelected
+          )
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 4)
+        .padding(.bottom, 88)
+      }
+      .scrollIndicators(.hidden)
+    }
+  }
+
+  @ViewBuilder
+  private var owedByMeContent: some View {
+    if filteredEntries.isEmpty {
+      ContentUnavailableView {
+        Label("No entries yet", systemImage: "arrow.up.right.circle")
+      } description: {
+        Text("Money you owe will appear here.")
+      } actions: {
+        Button("Add Entry", action: onAdd)
+          .buttonStyle(.borderedProminent)
+      }
+    } else {
+      ScrollView {
+        VStack(alignment: .leading, spacing: 10) {
+          OwedByMeSummaryCard(totalText: store.iOweTotalText)
+          HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Text("Entries")
+              .font(.title3.weight(.bold))
+            Spacer(minLength: 8)
+            Text("\(store.iOweEntryCount)")
+              .font(.headline)
+              .foregroundStyle(.secondary)
+          }
+          OwedByMeGroupedList(
             entries: filteredEntries,
             onEntrySelected: onEntrySelected
           )
@@ -210,6 +248,128 @@ private struct OwedToMeEntryRow: View {
       Text(entry.amountText)
         .font(.subheadline.weight(.semibold))
         .foregroundStyle(.blue)
+        .lineLimit(1)
+        .minimumScaleFactor(0.65)
+      Image(systemName: "chevron.right")
+        .font(.caption.weight(.bold))
+        .foregroundStyle(.tertiary)
+    }
+    .padding(.horizontal, 12)
+    .frame(minHeight: 80)
+    .contentShape(Rectangle())
+  }
+}
+
+@available(iOS 26.0, *)
+private struct OwedByMeSummaryCard: View {
+  let totalText: String
+
+  var body: some View {
+    ZStack(alignment: .topLeading) {
+      VStack(alignment: .leading, spacing: 8) {
+        Image(systemName: "arrow.up.right")
+          .font(.headline.weight(.semibold))
+          .foregroundStyle(.orange)
+          .frame(width: 48, height: 48)
+          .background(.white.opacity(0.86), in: Circle())
+          .overlay { Circle().stroke(.white.opacity(0.52), lineWidth: 1) }
+        Spacer(minLength: 2)
+        Text("Total I Owe")
+          .font(.headline.weight(.medium))
+          .foregroundStyle(.white.opacity(0.96))
+        Text(totalText)
+          .font(.system(.title2, design: .rounded).weight(.bold))
+          .foregroundStyle(.white)
+          .lineLimit(1)
+          .minimumScaleFactor(0.55)
+          .layoutPriority(1)
+      }
+      .padding(16)
+    }
+    .frame(maxWidth: .infinity, minHeight: 140, alignment: .leading)
+    .background(
+      LinearGradient(
+        colors: [Color(red: 1.0, green: 0.61, blue: 0.17), Color(red: 1.0, green: 0.28, blue: 0.04)],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+      )
+    )
+    .overlay(alignment: .bottomTrailing) {
+      ZStack {
+        Circle()
+          .stroke(.white.opacity(0.14), lineWidth: 28)
+          .frame(width: 280, height: 280)
+          .offset(x: 110, y: 112)
+        Circle()
+          .stroke(.white.opacity(0.12), lineWidth: 22)
+          .frame(width: 190, height: 190)
+          .offset(x: 86, y: 100)
+      }
+      .allowsHitTesting(false)
+    }
+    .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+    .shadow(color: .black.opacity(0.10), radius: 10, y: 5)
+    .accessibilityElement(children: .combine)
+    .accessibilityLabel("Total I owe \(totalText)")
+  }
+}
+
+@available(iOS 26.0, *)
+private struct OwedByMeGroupedList: View {
+  let entries: [NativeEntryListItem]
+  let onEntrySelected: (String) -> Void
+
+  var body: some View {
+    VStack(spacing: 0) {
+      ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
+        Button { onEntrySelected(entry.id) } label: {
+          OwedByMeEntryRow(entry: entry)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(entry.title), \(entry.amountText), \(entry.dateText)")
+        if index < entries.count - 1 {
+          Divider().padding(.leading, 72)
+        }
+      }
+    }
+    .padding(.vertical, 2)
+    .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+    .overlay {
+      RoundedRectangle(cornerRadius: 22, style: .continuous)
+        .stroke(Color.primary.opacity(0.06), lineWidth: 1)
+    }
+  }
+}
+
+@available(iOS 26.0, *)
+private struct OwedByMeEntryRow: View {
+  let entry: NativeEntryListItem
+
+  var body: some View {
+    HStack(spacing: 10) {
+      Image(systemName: "arrow.up.right")
+        .font(.headline.weight(.semibold))
+        .foregroundStyle(.orange)
+        .frame(width: 48, height: 48)
+        .background(Color.orange.opacity(0.12), in: Circle())
+      VStack(alignment: .leading, spacing: 2) {
+        Text(entry.title)
+          .font(.subheadline.weight(.semibold))
+          .lineLimit(1)
+          .truncationMode(.tail)
+        HStack(spacing: 6) {
+          Image(systemName: "calendar")
+            .font(.caption2)
+          Text(entry.dateText)
+        }
+        .font(.caption)
+        .foregroundStyle(.secondary)
+        .lineLimit(1)
+      }
+      Spacer(minLength: 8)
+      Text(entry.amountText)
+        .font(.subheadline.weight(.semibold))
+        .foregroundStyle(.orange)
         .lineLimit(1)
         .minimumScaleFactor(0.65)
       Image(systemName: "chevron.right")
