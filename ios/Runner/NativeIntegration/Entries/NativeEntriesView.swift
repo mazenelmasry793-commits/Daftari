@@ -90,7 +90,7 @@ struct NativeEntriesView: View {
       }
     } else {
       ScrollView {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 10) {
           OwedToMeSummaryCard(totalText: store.owedToMeTotalText)
           HStack(alignment: .firstTextBaseline, spacing: 10) {
             Text("Entries")
@@ -101,15 +101,15 @@ struct NativeEntriesView: View {
               .foregroundStyle(.secondary)
             OwedToMeSortButton(sortOrder: $sortOrder, reduceMotion: reduceMotion)
           }
-          .padding(.top, 4)
+          .padding(.top, 0)
           OwedToMeGroupedList(
             entries: filteredEntries,
             onEntrySelected: onEntrySelected
           )
         }
         .padding(.horizontal, 16)
-        .padding(.top, 8)
-        .padding(.bottom, 96)
+        .padding(.top, 4)
+        .padding(.bottom, 88)
       }
       .scrollIndicators(.hidden)
     }
@@ -122,27 +122,27 @@ private struct OwedToMeSummaryCard: View {
 
   var body: some View {
     ZStack(alignment: .topLeading) {
-      VStack(alignment: .leading, spacing: 12) {
+      VStack(alignment: .leading, spacing: 8) {
         Image(systemName: "arrow.down.left")
-          .font(.title3.weight(.semibold))
+          .font(.headline.weight(.semibold))
           .foregroundStyle(.white)
-          .frame(width: 50, height: 50)
+          .frame(width: 48, height: 48)
           .background(.white.opacity(0.18), in: Circle())
           .overlay { Circle().stroke(.white.opacity(0.22), lineWidth: 1) }
         Spacer(minLength: 2)
         Text("Total Owed")
-          .font(.title3.weight(.medium))
+          .font(.headline.weight(.medium))
           .foregroundStyle(.white.opacity(0.96))
         Text(totalText)
-          .font(.system(.largeTitle, design: .rounded).weight(.bold))
+          .font(.system(.title2, design: .rounded).weight(.bold))
           .foregroundStyle(.white)
           .lineLimit(1)
           .minimumScaleFactor(0.55)
           .layoutPriority(1)
       }
-      .padding(20)
+      .padding(16)
     }
-    .frame(maxWidth: .infinity, minHeight: 164, alignment: .leading)
+    .frame(maxWidth: .infinity, minHeight: 140, alignment: .leading)
     .background(
       LinearGradient(
         colors: [Color(red: 0.30, green: 0.59, blue: 0.98), Color(red: 0.04, green: 0.40, blue: 0.90)],
@@ -163,8 +163,8 @@ private struct OwedToMeSummaryCard: View {
       }
       .allowsHitTesting(false)
     }
-    .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
-    .shadow(color: .black.opacity(0.10), radius: 12, y: 6)
+    .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+    .shadow(color: .black.opacity(0.10), radius: 10, y: 5)
     .accessibilityElement(children: .combine)
     .accessibilityLabel("Total owed \(totalText)")
   }
@@ -225,14 +225,14 @@ private struct OwedToMeGroupedList: View {
         .buttonStyle(.plain)
         .accessibilityLabel("\(entry.title), \(entry.amountText), \(entry.dateText)")
         if index < entries.count - 1 {
-          Divider().padding(.leading, 82)
+          Divider().padding(.leading, 72)
         }
       }
     }
-    .padding(.vertical, 4)
-    .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+    .padding(.vertical, 2)
+    .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
     .overlay {
-      RoundedRectangle(cornerRadius: 24, style: .continuous)
+      RoundedRectangle(cornerRadius: 22, style: .continuous)
         .stroke(Color.primary.opacity(0.06), lineWidth: 1)
     }
   }
@@ -243,29 +243,29 @@ private struct OwedToMeEntryRow: View {
   let entry: NativeEntryListItem
 
   var body: some View {
-    HStack(spacing: 14) {
+    HStack(spacing: 10) {
       Image(systemName: "arrow.down.left")
-        .font(.title3.weight(.semibold))
+        .font(.headline.weight(.semibold))
         .foregroundStyle(.blue)
-        .frame(width: 54, height: 54)
+        .frame(width: 48, height: 48)
         .background(Color.blue.opacity(0.12), in: Circle())
-      VStack(alignment: .leading, spacing: 4) {
+      VStack(alignment: .leading, spacing: 2) {
         Text(entry.title)
-          .font(.headline.weight(.semibold))
+          .font(.subheadline.weight(.semibold))
           .lineLimit(1)
           .truncationMode(.tail)
         HStack(spacing: 6) {
           Image(systemName: "calendar")
-            .font(.caption)
+            .font(.caption2)
           Text(entry.dateText)
         }
-        .font(.subheadline)
+        .font(.caption)
         .foregroundStyle(.secondary)
         .lineLimit(1)
       }
       Spacer(minLength: 8)
       Text(entry.amountText)
-        .font(.headline.weight(.semibold))
+        .font(.subheadline.weight(.semibold))
         .foregroundStyle(.blue)
         .lineLimit(1)
         .minimumScaleFactor(0.65)
@@ -273,8 +273,8 @@ private struct OwedToMeEntryRow: View {
         .font(.caption.weight(.bold))
         .foregroundStyle(.tertiary)
     }
-    .padding(.horizontal, 14)
-    .frame(minHeight: 88)
+    .padding(.horizontal, 12)
+    .frame(minHeight: 80)
     .contentShape(Rectangle())
   }
 }
