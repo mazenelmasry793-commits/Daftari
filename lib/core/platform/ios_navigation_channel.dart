@@ -19,6 +19,7 @@ class IosNavigationChannel {
   Future<void> Function()? onAddRequested;
   Future<void> Function()? onSettingsRequested;
   ValueChanged<String>? onSearchQueryChanged;
+  VoidCallback? onSearchActivated;
   VoidCallback? onSearchDismissed;
   bool _addRequestInProgress = false;
   bool _settingsRequestInProgress = false;
@@ -58,6 +59,9 @@ class IosNavigationChannel {
         final query = call.arguments as String?;
         if (query != null) onSearchQueryChanged?.call(query);
         return null;
+      case 'nativeSearchActivated':
+        onSearchActivated?.call();
+        return null;
       case 'nativeSearchDismissed':
         onSearchDismissed?.call();
         return null;
@@ -83,6 +87,11 @@ class IosNavigationChannel {
   Future<void> setSearchVisible(bool visible) async {
     if (!_isIos()) return;
     await _channel.invokeMethod<void>('setSearchVisible', {'visible': visible});
+  }
+
+  Future<void> activateSearchTab() async {
+    if (!_isIos()) return;
+    await _channel.invokeMethod<void>('activateSearchTab');
   }
 }
 

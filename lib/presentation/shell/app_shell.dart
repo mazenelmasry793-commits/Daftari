@@ -45,6 +45,7 @@ class _AppShellState extends ConsumerState<AppShell> {
     iosNavigationChannel.onAddRequested = _openAddFromNative;
     iosNavigationChannel.onSettingsRequested = _openSettings;
     iosNavigationChannel.onSearchQueryChanged = _onNativeSearchQueryChanged;
+    iosNavigationChannel.onSearchActivated = _enterSearchFromNative;
     iosNavigationChannel.onSearchDismissed = _dismissSearch;
     nativeSheetsChannel.onAddEntryTypeSelected = _handleNativeEntryType;
     nativeSheetsChannel.onNativeEntryFormSubmitted = _saveNativeEntry;
@@ -60,6 +61,7 @@ class _AppShellState extends ConsumerState<AppShell> {
     iosNavigationChannel.onAddRequested = null;
     iosNavigationChannel.onSettingsRequested = null;
     iosNavigationChannel.onSearchQueryChanged = null;
+    iosNavigationChannel.onSearchActivated = null;
     iosNavigationChannel.onSearchDismissed = null;
     nativeSheetsChannel.onAddEntryTypeSelected = null;
     nativeSheetsChannel.onNativeEntryFormSubmitted = null;
@@ -90,6 +92,11 @@ class _AppShellState extends ConsumerState<AppShell> {
   }
 
   void _enterSearch() {
+    if (Platform.isIOS) {
+      _enterSearchFromNative();
+      unawaited(iosNavigationChannel.activateSearchTab());
+      return;
+    }
     if (_searchActive) {
       unawaited(iosNavigationChannel.setSearchVisible(true));
       return;
@@ -100,6 +107,15 @@ class _AppShellState extends ConsumerState<AppShell> {
       _searchQuery = '';
     });
     unawaited(iosNavigationChannel.setSearchVisible(true));
+  }
+
+  void _enterSearchFromNative() {
+    if (_searchActive) return;
+    _searchPreviousIndex = _index;
+    setState(() {
+      _searchActive = true;
+      _searchQuery = '';
+    });
   }
 
   void _onNativeSearchQueryChanged(String query) {

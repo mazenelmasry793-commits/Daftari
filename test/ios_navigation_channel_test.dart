@@ -78,6 +78,34 @@ void main() {
     expect(dismissed, isTrue);
   });
 
+  test('system Search-tab activation reaches Flutter without a route', () async {
+    const channel = MethodChannel('test.ios.navigation.system_search');
+    final calls = <MethodCall>[];
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async {
+          calls.add(call);
+          return null;
+        });
+    addTearDown(() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, null);
+    });
+    final navigation = IosNavigationChannel(
+      channel: channel,
+      isIos: () => true,
+    );
+    var activated = false;
+    navigation.onSearchActivated = () => activated = true;
+
+    await navigation.handleNativeCall(
+      const MethodCall('nativeSearchActivated'),
+    );
+    await navigation.activateSearchTab();
+
+    expect(activated, isTrue);
+    expect(calls.single.method, 'activateSearchTab');
+  });
+
   test('rapid native add requests open one chooser at a time', () async {
     const channel = MethodChannel('test.ios.navigation.add');
     final navigation = IosNavigationChannel(
