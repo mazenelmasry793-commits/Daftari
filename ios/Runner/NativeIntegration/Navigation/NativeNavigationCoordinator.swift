@@ -9,8 +9,14 @@ final class NativeNavigationCoordinator {
   private var systemTabBarController: AnyObject?
   private var navigationBarHost: AnyObject?
   private var settingsButton: NativeSettingsButtonView?
+  private var dashboardAddItem: UIBarButtonItem?
+  private var dashboardSettingsItem: UIBarButtonItem?
+  private var dashboardTitle = "Dashboard"
+  private var dashboardTitleCollapsed = false
   private var navigationVisible = false
   private var searchModeActive = false
+  private let titleCollapseThreshold: CGFloat = 24
+  private let titleExpandThreshold: CGFloat = 4
   // Keeps the native control clear of the screen edge while preserving its
   // safe-area-aligned header position.
   private let settingsButtonTrailingInset: CGFloat = 8
@@ -21,7 +27,7 @@ final class NativeNavigationCoordinator {
     self.sheetCoordinator.onRequestAddEntryMenu = { [weak self] in
       self?.navigationView?.presentAddMenu()
       if #available(iOS 26.0, *) {
-        (self?.navigationBarHost as? DaftariNavigationBarHostViewController)?.presentAddMenu()
+        self?.presentNativeDashboardAddMenu()
       }
     }
   }
@@ -51,8 +57,7 @@ final class NativeNavigationCoordinator {
         channel?.invokeMethod("nativeSearchDismissed", arguments: nil)
       },
       onSearchModeChanged: { [weak self] active in
-        self?.searchModeActive = active
-        self?.updateSettingsVisibility(animated: true)
+        self?.setSearchMode(active)
       }
     )
     settingsButton.onSettingsRequested = { [weak channel] in
@@ -76,8 +81,7 @@ final class NativeNavigationCoordinator {
           channel?.invokeMethod("nativeSearchDismissed", arguments: nil)
         },
         onSearchModeChanged: { [weak self] active in
-          self?.searchModeActive = active
-          self?.updateSettingsVisibility(animated: true)
+          self?.setSearchMode(active)
         }
       )
       rootViewController.addChild(systemTabs.viewController)
@@ -86,30 +90,12 @@ final class NativeNavigationCoordinator {
       NSLayoutConstraint.activate([
         systemTabs.viewController.view.leadingAnchor.constraint(equalTo: rootViewController.view.leadingAnchor),
         systemTabs.viewController.view.trailingAnchor.constraint(equalTo: rootViewController.view.trailingAnchor),
-        systemTabs.viewController.view.topAnchor.constraint(equalTo: rootViewController.view.topAnchor),
+        systemTabs.viewController.view.topAnchor.constraint(equalTo: rootViewController.view.safeAreaLayoutGuide.topAnchor),
         systemTabs.viewController.view.bottomAnchor.constraint(equalTo: rootViewController.view.bottomAnchor),
       ])
       systemTabs.viewController.didMove(toParent: rootViewController)
       self.systemTabBarController = systemTabs
-      let navigationBarHost = DaftariNavigationBarHostViewController(
-        onSettingsRequested: { [weak channel] in
-          channel?.invokeMethod(NativeChannelConstants.NavigationMethod.openSettings, arguments: nil)
-        },
-        onAddEntryTypeSelected: { [weak self] type in
-          _ = self?.sheetCoordinator.presentNativeEntryForm(type: type)
-        }
-      )
-      rootViewController.addChild(navigationBarHost)
-      rootViewController.view.addSubview(navigationBarHost.view)
-      navigationBarHost.view.translatesAutoresizingMaskIntoConstraints = false
-      NSLayoutConstraint.activate([
-        navigationBarHost.view.leadingAnchor.constraint(equalTo: rootViewController.view.leadingAnchor),
-        navigationBarHost.view.trailingAnchor.constraint(equalTo: rootViewController.view.trailingAnchor),
-        navigationBarHost.view.topAnchor.constraint(equalTo: rootViewController.view.topAnchor),
-        navigationBarHost.view.heightAnchor.constraint(equalToConstant: 96),
-      ])
-      navigationBarHost.didMove(toParent: rootViewController)
-      self.navigationBarHost = navigationBarHost
+      configureDashboardNavigationBar(channel: channel)
     } else {
       rootViewController.view.addSubview(navigationView)
       navigationView.translatesAutoresizingMaskIntoConstraints = false
@@ -121,16 +107,20 @@ final class NativeNavigationCoordinator {
       ])
     }
 
-    rootViewController.view.addSubview(settingsButton)
-    NSLayoutConstraint.activate([
-      settingsButton.trailingAnchor.constraint(
-        equalTo: rootViewController.view.trailingAnchor,
-        constant: -settingsButtonTrailingInset
-      ),
-      settingsButton.centerYAnchor.constraint(equalTo: rootViewController.view.safeAreaLayoutGuide.topAnchor, constant: 28),
-      settingsButton.widthAnchor.constraint(equalToConstant: 48),
-      settingsButton.heightAnchor.constraint(equalToConstant: 48),
-    ])
+    if #available(iOS 26.0, *) {
+      // Dashboard actions are owned by the real UINavigationItem above.
+    } else {
+      rootViewController.view.addSubview(settingsButton)
+      NSLayoutConstraint.activate([
+        settingsButton.trailingAnchor.constraint(
+          equalTo: rootViewController.view.trailingAnchor,
+          constant: -settingsButtonTrailingInset
+        ),
+        settingsButton.centerYAnchor.constraint(equalTo: rootViewController.view.safeAreaLayoutGuide.topAnchor, constant: 28),
+        settingsButton.widthAnchor.constraint(equalToConstant: 48),
+        settingsButton.heightAnchor.constraint(equalToConstant: 48),
+      ])
+    }
 
     channel.setMethodCallHandler { [weak self, weak navigationView, weak settingsButton] call, result in
       let arguments = call.arguments as? [String: Any]
@@ -151,6 +141,12 @@ final class NativeNavigationCoordinator {
           (self?.systemTabBarController as? DaftariSystemTabBarController)?.setNavigationVisible(visible, animated: true)
         }
         self?.updateSettingsVisibility(animated: true)
+        result(nil)
+      case "setNavigationTitle":
+        self?.setDashboardTitle(arguments?["title"] as? String ?? "Dashboard")
+        result(nil)
+      case "dashboardScrollOffsetChanged":
+        self?.updateDashboardScrollOffset(arguments?["offset"] as? CGFloat ?? 0)
         result(nil)
       case "setSearchVisible":
         navigationView?.setSearchVisible(arguments?["visible"] as? Bool ?? false)
@@ -179,13 +175,149 @@ final class NativeNavigationCoordinator {
 
   private func updateSettingsVisibility(animated: Bool) {
     if #available(iOS 26.0, *) {
-      (navigationBarHost as? DaftariNavigationBarHostViewController)?.setVisible(
-        navigationVisible && !searchModeActive,
-        animated: animated
-      )
+      setNativeDashboardItemsVisible(navigationVisible && !searchModeActive, animated: animated)
     } else {
       settingsButton?.setVisible(navigationVisible && !searchModeActive, animated: animated)
     }
+  }
+
+  private func setSearchMode(_ active: Bool) {
+    searchModeActive = active
+    if #available(iOS 26.0, *) {
+      rootViewController.navigationItem.title = active ? nil : dashboardTitle
+      if !active {
+        rootViewController.navigationItem.largeTitleDisplayMode = dashboardTitle == "Dashboard" && !dashboardTitleCollapsed ? .always : .automatic
+      }
+    }
+    updateSettingsVisibility(animated: true)
+  }
+
+  @available(iOS 26.0, *)
+  private func configureDashboardNavigationBar(channel: FlutterMethodChannel) {
+    guard let navigationController = rootViewController.navigationController else { return }
+    navigationController.navigationBar.prefersLargeTitles = true
+    rootViewController.navigationItem.title = dashboardTitle
+    rootViewController.navigationItem.largeTitleDisplayMode = .always
+
+    let add = UIBarButtonItem(
+      image: UIImage(systemName: "plus"),
+      style: .plain,
+      target: self,
+      action: nil
+    )
+    add.accessibilityLabel = "Add entry"
+    add.accessibilityHint = "Opens the new entry menu"
+    add.menu = makeAddMenu()
+
+    let settings = UIBarButtonItem(
+      image: UIImage(systemName: "gearshape.fill"),
+      style: .plain,
+      target: self,
+      action: #selector(nativeSettingsTapped)
+    )
+    settings.accessibilityLabel = "Settings"
+    rootViewController.navigationItem.rightBarButtonItems = [settings, add]
+    dashboardAddItem = add
+    dashboardSettingsItem = settings
+    navigationBarHost = navigationController
+    navigationController.setNavigationBarHidden(false, animated: false)
+
+    let standard = UINavigationBarAppearance()
+    standard.configureWithDefaultBackground()
+    let scrollEdge = UINavigationBarAppearance()
+    // Flutter's body is not a native UIScrollView, so a fully transparent
+    // scroll-edge bar would reveal the Flutter engine's black backing view.
+    // Default system material keeps the large title readable while retaining
+    // Apple's native appearance and transition.
+    scrollEdge.configureWithDefaultBackground()
+    standard.backgroundColor = .systemBackground
+    scrollEdge.backgroundColor = .systemBackground
+    standard.titleTextAttributes = [.foregroundColor: UIColor.label]
+    standard.largeTitleTextAttributes = [.foregroundColor: UIColor.label]
+    scrollEdge.titleTextAttributes = [.foregroundColor: UIColor.label]
+    scrollEdge.largeTitleTextAttributes = [.foregroundColor: UIColor.label]
+    navigationController.navigationBar.standardAppearance = standard
+    navigationController.navigationBar.scrollEdgeAppearance = scrollEdge
+    navigationController.navigationBar.compactAppearance = standard
+    if #available(iOS 15.0, *) {
+      navigationController.navigationBar.compactScrollEdgeAppearance = scrollEdge
+    }
+    _ = channel
+  }
+
+  @available(iOS 26.0, *)
+  private func makeAddMenu() -> UIMenu {
+    UIMenu(
+      title: "",
+      children: NativeAddEntryOption.allCases.map { option in
+        let action = UIAction(
+          title: option.title,
+          image: UIImage(systemName: option.sfSymbolName)
+        ) { [weak self] _ in
+          UIImpactFeedbackGenerator(style: .light).impactOccurred()
+          _ = self?.sheetCoordinator.presentNativeEntryForm(type: option.rawValue)
+        }
+        if #available(iOS 15.0, *) { action.subtitle = option.subtitle }
+        return action
+      }
+    )
+  }
+
+  @available(iOS 26.0, *)
+  private func presentNativeDashboardAddMenu() {
+    dashboardAddItem?.menu = makeAddMenu()
+  }
+
+  @available(iOS 26.0, *)
+  private func setNativeDashboardItemsVisible(_ visible: Bool, animated: Bool) {
+    guard let navigationController = rootViewController.navigationController else { return }
+    let update = {
+      self.rootViewController.navigationItem.rightBarButtonItems = visible
+        ? [self.dashboardSettingsItem, self.dashboardAddItem].compactMap { $0 }
+        : nil
+      navigationController.navigationBar.isUserInteractionEnabled = visible
+    }
+    guard animated, !UIAccessibility.isReduceMotionEnabled else { update(); return }
+    UIView.animate(withDuration: 0.2, animations: update)
+  }
+
+  private func setDashboardTitle(_ title: String) {
+    dashboardTitle = title
+    guard #available(iOS 26.0, *), !searchModeActive else { return }
+    rootViewController.navigationItem.title = title
+    rootViewController.navigationController?.navigationBar.topItem?.title = title
+    rootViewController.navigationItem.largeTitleDisplayMode = title == "Dashboard" && !dashboardTitleCollapsed ? .always : .automatic
+  }
+
+  private func updateDashboardScrollOffset(_ offset: CGFloat) {
+    guard #available(iOS 26.0, *), dashboardTitle == "Dashboard", !searchModeActive else { return }
+    let shouldCollapse = dashboardTitleCollapsed
+      ? offset > titleExpandThreshold
+      : offset >= titleCollapseThreshold
+    guard shouldCollapse != dashboardTitleCollapsed else { return }
+    dashboardTitleCollapsed = shouldCollapse
+    rootViewController.navigationItem.title = dashboardTitle
+    rootViewController.navigationController?.navigationBar.topItem?.title = dashboardTitle
+    // Automatic keeps the same native item but lets UIKit render its compact
+    // inline title while the Flutter scroll view is away from the top.
+    rootViewController.navigationItem.largeTitleDisplayMode = shouldCollapse ? .automatic : .always
+    guard let navigationBar = rootViewController.navigationController?.navigationBar else { return }
+    if shouldCollapse {
+      navigationBar.scrollEdgeAppearance = navigationBar.standardAppearance
+    } else {
+      let scrollEdge = UINavigationBarAppearance()
+      scrollEdge.configureWithDefaultBackground()
+      navigationBar.scrollEdgeAppearance = scrollEdge
+    }
+    UIView.animate(withDuration: UIAccessibility.isReduceMotionEnabled ? 0 : 0.22) {
+      navigationBar.layoutIfNeeded()
+    }
+  }
+
+  @available(iOS 26.0, *)
+  @objc private func nativeSettingsTapped() {
+    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+    channel?.invokeMethod(NativeChannelConstants.NavigationMethod.openSettings, arguments: nil)
   }
 
   deinit {

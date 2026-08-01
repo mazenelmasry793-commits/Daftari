@@ -2,7 +2,7 @@ import UIKit
 
 @available(iOS 26.0, *)
 final class DaftariSystemTabBarController: NSObject, UITabBarControllerDelegate {
-  let viewController: UITabBarController
+  let viewController: DaftariPassthroughTabBarController
 
   private final class PlaceholderViewController: UIViewController {
     override func loadView() {
@@ -67,7 +67,7 @@ final class DaftariSystemTabBarController: NSObject, UITabBarControllerDelegate 
       tabsByIdentifier[tab.identifier] = index
     }
 
-    let controller = UITabBarController(tabs: allTabs)
+    let controller = DaftariPassthroughTabBarController(tabs: allTabs)
     controller.mode = .tabBar
     if #available(iOS 26.0, *) {
       controller.tabBarMinimizeBehavior = .never
@@ -130,5 +130,29 @@ final class DaftariSystemTabBarController: NSObject, UITabBarControllerDelegate 
     guard searchIsActive != active else { return }
     searchIsActive = active
     onSearchModeChanged(active)
+  }
+}
+
+@available(iOS 26.0, *)
+final class DaftariPassthroughTabBarController: UITabBarController {
+  override func loadView() {
+    view = DaftariTabBarPassthroughView()
+  }
+
+  override func viewDidLayoutSubviews() {
+    super.viewDidLayoutSubviews()
+    (view as? DaftariTabBarPassthroughView)?.interactiveView = tabBar
+  }
+}
+
+@available(iOS 26.0, *)
+private final class DaftariTabBarPassthroughView: UIView {
+  weak var interactiveView: UIView?
+
+  override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+    guard let interactiveView else { return nil }
+    let tabBarPoint = convert(point, to: interactiveView)
+    guard interactiveView.point(inside: tabBarPoint, with: event) else { return nil }
+    return super.hitTest(point, with: event)
   }
 }

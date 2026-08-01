@@ -28,7 +28,6 @@
 		A10000010000000000000014 /* NativeSearchBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000020000000000000014 /* NativeSearchBarView.swift */; };
 		A10000010000000000000015 /* DaftariSystemTabBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000020000000000000015 /* DaftariSystemTabBarController.swift */; };
 		A10000010000000000000016 /* DaftariSearchHostViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000020000000000000016 /* DaftariSearchHostViewController.swift */; };
-		A10000010000000000000017 /* DaftariNavigationBarHostViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000020000000000000017 /* DaftariNavigationBarHostViewController.swift */; };
 		78A318202AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage in Frameworks */ = {isa = PBXBuildFile; productRef = 78A3181F2AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage */; };
 		877DA17ED607957F1D2BE648 /* Pods_Runner.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6668F39A64E13ED1565A4DA6 /* Pods_Runner.framework */; };
 		97C146FC1CF9000F007C117D /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FA1CF9000F007C117D /* Main.storyboard */; };
@@ -86,7 +85,6 @@
 		A10000020000000000000014 /* NativeSearchBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeSearchBarView.swift; sourceTree = "<group>"; };
 		A10000020000000000000015 /* DaftariSystemTabBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DaftariSystemTabBarController.swift; sourceTree = "<group>"; };
 		A10000020000000000000016 /* DaftariSearchHostViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DaftariSearchHostViewController.swift; sourceTree = "<group>"; };
-		A10000020000000000000017 /* DaftariNavigationBarHostViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DaftariNavigationBarHostViewController.swift; sourceTree = "<group>"; };
 		78E0A7A72DC9AD7400C4905E /* FlutterGeneratedPluginSwiftPackage */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = FlutterGeneratedPluginSwiftPackage; path = Flutter/ephemeral/Packages/FlutterGeneratedPluginSwiftPackage; sourceTree = "<group>"; };
 		7AFA3C8E1D35360C0083082E /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Release.xcconfig; path = Flutter/Release.xcconfig; sourceTree = "<group>"; };
 		9740EEB21CF90195004384FC /* Debug.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = Debug.xcconfig; path = Flutter/Debug.xcconfig; sourceTree = "<group>"; };
@@ -213,7 +211,6 @@
 				A10000020000000000000014 /* NativeSearchBarView.swift */,
 				A10000020000000000000015 /* DaftariSystemTabBarController.swift */,
 				A10000020000000000000016 /* DaftariSearchHostViewController.swift */,
-				A10000020000000000000017 /* DaftariNavigationBarHostViewController.swift */,
 			);
 			path = Navigation;
 			sourceTree = "<group>";
@@ -496,7 +493,6 @@
 				A10000010000000000000014 /* NativeSearchBarView.swift in Sources */,
 				A10000010000000000000015 /* DaftariSystemTabBarController.swift in Sources */,
 				A10000010000000000000016 /* DaftariSearchHostViewController.swift in Sources */,
-				A10000010000000000000017 /* DaftariNavigationBarHostViewController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
