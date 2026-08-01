@@ -6,6 +6,10 @@ final class NativeFloatingNavigationView: UIView, UITabBarDelegate {
   private let tabBar = UITabBar()
   private let addButton = UIButton(type: .system)
   private let rowContainer = UIView()
+  // iOS 26's native Liquid Glass platter reserves 21 pt on each horizontal
+  // side. The 16 pt visible gap keeps the platter and + control distinct.
+  private let liquidGlassHorizontalInset: CGFloat = 21
+  private let visibleTabBarButtonGap: CGFloat = 16
   private var wantsVisible = false
   private var keyboardVisible = false
 
@@ -91,11 +95,14 @@ final class NativeFloatingNavigationView: UIView, UITabBarDelegate {
     addSubview(rowContainer)
     NSLayoutConstraint.activate([
       rowContainer.leadingAnchor.constraint(equalTo: leadingAnchor),
-      rowContainer.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -4),
+      rowContainer.trailingAnchor.constraint(equalTo: trailingAnchor),
       rowContainer.bottomAnchor.constraint(equalTo: safeAreaLayoutGuide.bottomAnchor),
       rowContainer.heightAnchor.constraint(equalToConstant: 83),
       tabBar.leadingAnchor.constraint(equalTo: rowContainer.leadingAnchor),
-      tabBar.trailingAnchor.constraint(equalTo: addButton.leadingAnchor, constant: -8),
+      tabBar.trailingAnchor.constraint(
+        equalTo: addButton.leadingAnchor,
+        constant: liquidGlassHorizontalInset - visibleTabBarButtonGap
+      ),
       tabBar.topAnchor.constraint(equalTo: rowContainer.topAnchor),
       tabBar.bottomAnchor.constraint(equalTo: rowContainer.bottomAnchor),
       addButton.trailingAnchor.constraint(equalTo: rowContainer.trailingAnchor),
