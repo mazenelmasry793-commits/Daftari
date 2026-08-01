@@ -2,6 +2,8 @@ import Combine
 
 final class NativeEntriesStore: ObservableObject {
   @Published private(set) var entries: [NativeEntryListItem] = []
+  @Published private(set) var owedToMeTotalText = "€ 0.00"
+  @Published private(set) var owedToMeEntryCount = 0
   @Published private(set) var errorMessage: String?
 
   func apply(payload: Any?) {
@@ -25,6 +27,9 @@ final class NativeEntriesStore: ObservableObject {
         dateText: dateText
       )
     }
+    owedToMeTotalText = payload["owedToMeText"] as? String ?? "€ 0.00"
+    owedToMeEntryCount = payload["owedToMeEntryCount"] as? Int
+      ?? entries.filter { $0.type == NativeEntryListType.owedToMe.rawValue }.count
     errorMessage = nil
   }
 

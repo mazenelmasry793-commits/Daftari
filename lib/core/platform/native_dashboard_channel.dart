@@ -63,6 +63,15 @@ class NativeDashboardChannel {
       'iOweMinor': (totals.iOwe * 100).round(),
       'owedToMeText': AppFormatters.money.format(totals.owedToMe),
       'iOweText': AppFormatters.money.format(totals.iOwe),
+      'owedToMeEntryCount': list
+          .where((entry) => entry.type == EntryType.owedToMe)
+          .length,
+      'iOweEntryCount': list
+          .where((entry) => entry.type == EntryType.owedByMe)
+          .length,
+      'scratchpadEntryCount': list
+          .where((entry) => entry.type == EntryType.scratchpad)
+          .length,
       'totalRecentCount': recent.length,
       'recentEntries': [
         for (final entry in recent)
