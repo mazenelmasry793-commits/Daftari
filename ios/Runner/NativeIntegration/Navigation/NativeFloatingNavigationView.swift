@@ -92,13 +92,14 @@ final class NativeFloatingNavigationView: UIView, UITabBarDelegate {
     NSLayoutConstraint.activate([
       rowContainer.leadingAnchor.constraint(equalTo: leadingAnchor),
       rowContainer.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -4),
-      rowContainer.bottomAnchor.constraint(equalTo: safeAreaLayoutGuide.bottomAnchor, constant: 10),
+      rowContainer.bottomAnchor.constraint(equalTo: safeAreaLayoutGuide.bottomAnchor),
+      rowContainer.heightAnchor.constraint(equalToConstant: 83),
       tabBar.leadingAnchor.constraint(equalTo: rowContainer.leadingAnchor),
       tabBar.trailingAnchor.constraint(equalTo: addButton.leadingAnchor, constant: -8),
       tabBar.topAnchor.constraint(equalTo: rowContainer.topAnchor),
       tabBar.bottomAnchor.constraint(equalTo: rowContainer.bottomAnchor),
       addButton.trailingAnchor.constraint(equalTo: rowContainer.trailingAnchor),
-      addButton.centerYAnchor.constraint(equalTo: rowContainer.centerYAnchor),
+      addButton.centerYAnchor.constraint(equalTo: tabBar.topAnchor, constant: 31),
       addButton.widthAnchor.constraint(equalToConstant: 52),
       addButton.heightAnchor.constraint(equalToConstant: 52),
     ])
