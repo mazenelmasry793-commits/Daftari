@@ -52,7 +52,6 @@ class _AppShellState extends ConsumerState<AppShell> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(iosNavigationChannel.setSelectedTab(_index));
       unawaited(iosNavigationChannel.setNavigationVisible(true));
-      unawaited(iosNavigationChannel.setNavigationTitle(_titles[_index]));
     });
   }
 
@@ -132,7 +131,6 @@ class _AppShellState extends ConsumerState<AppShell> {
       _searchQuery = '';
       _index = restoredIndex;
     });
-    unawaited(iosNavigationChannel.setNavigationTitle(_titles[restoredIndex]));
     unawaited(iosNavigationChannel.setSearchVisible(false));
     unawaited(iosNavigationChannel.setSelectedTab(restoredIndex));
   }
@@ -292,7 +290,6 @@ class _AppShellState extends ConsumerState<AppShell> {
     if (_index == index) return;
     setState(() => _index = index);
     unawaited(iosNavigationChannel.setSelectedTab(index));
-    unawaited(iosNavigationChannel.setNavigationTitle(_titles[index]));
   }
 
   @override
@@ -324,7 +321,7 @@ class _AppShellState extends ConsumerState<AppShell> {
 
     return Scaffold(
       extendBody: true,
-      appBar: _searchActive || useNativeIosNavigation
+      appBar: _searchActive
           ? null
           : AppBar(
               title: Text(_titles[_index]),

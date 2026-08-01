@@ -84,18 +84,6 @@ class IosNavigationChannel {
     });
   }
 
-  Future<void> setNavigationTitle(String title) async {
-    if (!_isIos()) return;
-    await _channel.invokeMethod<void>('setNavigationTitle', {'title': title});
-  }
-
-  Future<void> setDashboardScrollOffset(double offset) async {
-    if (!_isIos()) return;
-    await _channel.invokeMethod<void>('dashboardScrollOffsetChanged', {
-      'offset': offset,
-    });
-  }
-
   Future<void> setSearchVisible(bool visible) async {
     if (!_isIos()) return;
     await _channel.invokeMethod<void>('setSearchVisible', {'visible': visible});
