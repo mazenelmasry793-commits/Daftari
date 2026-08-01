@@ -7,8 +7,23 @@ struct NativeEntriesView: View {
   let onAdd: () -> Void
   let onSettings: () -> Void
   let onEntrySelected: (String) -> Void
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
+  @State private var sortOrder: DateSortOrder = .newestFirst
 
-  private var filteredEntries: [NativeEntryListItem] { store.entries(for: type) }
+  private var filteredEntries: [NativeEntryListItem] {
+    let entries = store.entries(for: type)
+    guard type == .owedToMe else { return entries }
+
+    return entries.enumerated().sorted { lhs, rhs in
+      if lhs.element.date != rhs.element.date {
+        return sortOrder == .newestFirst
+          ? lhs.element.date > rhs.element.date
+          : lhs.element.date < rhs.element.date
+      }
+      // Preserve canonical Flutter source order for equal dates.
+      return lhs.offset < rhs.offset
+    }.map(\.element)
+  }
 
   var body: some View {
     NavigationStack {
@@ -66,9 +81,9 @@ struct NativeEntriesView: View {
   private var owedToMeContent: some View {
     if filteredEntries.isEmpty {
       ContentUnavailableView {
-        Label("No money owed to you", systemImage: "arrow.down.left.circle")
+        Label("No entries yet", systemImage: "arrow.down.left.circle")
       } description: {
-        Text("New amounts owed to you will appear here.")
+        Text("Money owed to you will appear here.")
       } actions: {
         Button("Add Entry", action: onAdd)
           .buttonStyle(.borderedProminent)
@@ -76,13 +91,17 @@ struct NativeEntriesView: View {
     } else {
       ScrollView {
         VStack(alignment: .leading, spacing: 14) {
-          OwedToMeSummaryCard(
-            totalText: store.owedToMeTotalText,
-            entryCount: store.owedToMeEntryCount
-          )
-          Text("People")
-            .font(.title3.weight(.semibold))
-            .padding(.top, 4)
+          OwedToMeSummaryCard(totalText: store.owedToMeTotalText)
+          HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Text("Entries")
+              .font(.title3.weight(.bold))
+            Spacer(minLength: 8)
+            Text("\(store.owedToMeEntryCount)")
+              .font(.headline)
+              .foregroundStyle(.secondary)
+            OwedToMeSortButton(sortOrder: $sortOrder, reduceMotion: reduceMotion)
+          }
+          .padding(.top, 4)
           OwedToMeGroupedList(
             entries: filteredEntries,
             onEntrySelected: onEntrySelected
@@ -100,51 +119,95 @@ struct NativeEntriesView: View {
 @available(iOS 26.0, *)
 private struct OwedToMeSummaryCard: View {
   let totalText: String
-  let entryCount: Int
-
-  private var countText: String {
-    "\(entryCount) active \(entryCount == 1 ? "entry" : "entries")"
-  }
 
   var body: some View {
-    HStack(spacing: 14) {
-      Image(systemName: "arrow.down.left")
-        .font(.headline.weight(.semibold))
-        .foregroundStyle(.blue)
-        .frame(width: 42, height: 42)
-        .background(.white.opacity(0.7), in: Circle())
-      VStack(alignment: .leading, spacing: 4) {
+    ZStack(alignment: .topLeading) {
+      VStack(alignment: .leading, spacing: 12) {
+        Image(systemName: "arrow.down.left")
+          .font(.title3.weight(.semibold))
+          .foregroundStyle(.white)
+          .frame(width: 50, height: 50)
+          .background(.white.opacity(0.18), in: Circle())
+          .overlay { Circle().stroke(.white.opacity(0.22), lineWidth: 1) }
+        Spacer(minLength: 2)
         Text("Total Owed")
-          .font(.subheadline.weight(.medium))
-          .foregroundStyle(.secondary)
-        Text(countText)
-          .font(.footnote)
-          .foregroundStyle(.secondary)
+          .font(.title3.weight(.medium))
+          .foregroundStyle(.white.opacity(0.96))
+        Text(totalText)
+          .font(.system(.largeTitle, design: .rounded).weight(.bold))
+          .foregroundStyle(.white)
+          .lineLimit(1)
+          .minimumScaleFactor(0.55)
+          .layoutPriority(1)
       }
-      Spacer(minLength: 8)
-      Text(totalText)
-        .font(.system(.title3, design: .rounded).weight(.bold))
-        .foregroundStyle(.blue)
-        .lineLimit(1)
-        .minimumScaleFactor(0.55)
-        .layoutPriority(1)
+      .padding(20)
     }
-    .padding(.horizontal, 16)
-    .frame(minHeight: 96)
+    .frame(maxWidth: .infinity, minHeight: 164, alignment: .leading)
     .background(
       LinearGradient(
-        colors: [Color.blue.opacity(0.12), Color.blue.opacity(0.04)],
+        colors: [Color(red: 0.30, green: 0.59, blue: 0.98), Color(red: 0.04, green: 0.40, blue: 0.90)],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
-      ),
-      in: RoundedRectangle(cornerRadius: 22, style: .continuous)
+      )
     )
-    .overlay {
-      RoundedRectangle(cornerRadius: 22, style: .continuous)
-        .stroke(Color.blue.opacity(0.12), lineWidth: 1)
+    .overlay(alignment: .bottomTrailing) {
+      ZStack {
+        Circle()
+          .stroke(.white.opacity(0.14), lineWidth: 28)
+          .frame(width: 280, height: 280)
+          .offset(x: 110, y: 112)
+        Circle()
+          .stroke(.white.opacity(0.12), lineWidth: 22)
+          .frame(width: 190, height: 190)
+          .offset(x: 86, y: 100)
+      }
+      .allowsHitTesting(false)
     }
+    .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+    .shadow(color: .black.opacity(0.10), radius: 12, y: 6)
     .accessibilityElement(children: .combine)
-    .accessibilityLabel("Total owed \(totalText), \(countText)")
+    .accessibilityLabel("Total owed \(totalText)")
+  }
+}
+
+private enum DateSortOrder: Equatable {
+  case newestFirst
+  case oldestFirst
+
+  var symbolName: String { self == .newestFirst ? "arrow.down" : "arrow.up" }
+  var spokenValue: String { self == .newestFirst ? "Newest first" : "Oldest first" }
+  var hint: String {
+    self == .newestFirst
+      ? "Double tap to show oldest entries first"
+      : "Double tap to show newest entries first"
+  }
+}
+
+@available(iOS 26.0, *)
+private struct OwedToMeSortButton: View {
+  @Binding var sortOrder: DateSortOrder
+  let reduceMotion: Bool
+
+  var body: some View {
+    Button {
+      if reduceMotion {
+        sortOrder = sortOrder == .newestFirst ? .oldestFirst : .newestFirst
+      } else {
+        withAnimation(.snappy) {
+          sortOrder = sortOrder == .newestFirst ? .oldestFirst : .newestFirst
+        }
+      }
+    } label: {
+      Image(systemName: sortOrder.symbolName)
+        .font(.headline.weight(.semibold))
+        .frame(width: 44, height: 44)
+        .contentTransition(.symbolEffect(.replace))
+    }
+    .buttonStyle(.plain)
+    .background(.thinMaterial, in: Circle())
+    .accessibilityLabel("Sort entries")
+    .accessibilityValue(sortOrder.spokenValue)
+    .accessibilityHint(sortOrder.hint)
   }
 }
 
@@ -191,10 +254,14 @@ private struct OwedToMeEntryRow: View {
           .font(.headline.weight(.semibold))
           .lineLimit(1)
           .truncationMode(.tail)
-        Text(entry.dateText)
-          .font(.subheadline)
-          .foregroundStyle(.secondary)
-          .lineLimit(1)
+        HStack(spacing: 6) {
+          Image(systemName: "calendar")
+            .font(.caption)
+          Text(entry.dateText)
+        }
+        .font(.subheadline)
+        .foregroundStyle(.secondary)
+        .lineLimit(1)
       }
       Spacer(minLength: 8)
       Text(entry.amountText)
@@ -207,7 +274,7 @@ private struct OwedToMeEntryRow: View {
         .foregroundStyle(.tertiary)
     }
     .padding(.horizontal, 14)
-    .frame(minHeight: 86)
+    .frame(minHeight: 88)
     .contentShape(Rectangle())
   }
 }

@@ -34,6 +34,8 @@ void main() {
     final entries = received?['recentEntries'] as List<Object?>;
     expect((entries[0] as Map<Object?, Object?>)['id'], '1');
     expect((entries[0] as Map<Object?, Object?>)['type'], 'owedToMe');
+    expect((entries[0] as Map<Object?, Object?>)['dateIso8601'],
+        date.toIso8601String());
     expect((entries[1] as Map<Object?, Object?>)['id'], '2');
     expect((entries[1] as Map<Object?, Object?>)['type'], 'owedByMe');
 

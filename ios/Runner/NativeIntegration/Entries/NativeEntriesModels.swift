@@ -6,6 +6,7 @@ struct NativeEntryListItem: Identifiable, Equatable {
   let type: String
   let amountText: String
   let dateText: String
+  let date: Date
 
   var isNote: Bool { type == "scratchpad" }
 
