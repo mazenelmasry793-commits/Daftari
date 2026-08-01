@@ -5,6 +5,7 @@ enum NativeChannelConstants {
   static let sheetsChannel = "com.daftari/native_sheets"
   static let toastChannel = "com.daftari/native_toast"
   static let dashboardChannel = "com.daftari/native_dashboard"
+  static let entriesChannel = "com.daftari/native_entries"
 
   enum NavigationMethod {
     static let setSelectedTab = "setSelectedTab"
@@ -31,6 +32,11 @@ enum NativeChannelConstants {
   enum DashboardMethod {
     static let snapshotUpdated = "dashboardSnapshotUpdated"
     static let dashboardReady = "dashboardReady"
+    static let openEntryDetails = "openEntryDetails"
+  }
+
+  enum EntriesMethod {
+    static let snapshotUpdated = "entriesSnapshotUpdated"
     static let openEntryDetails = "openEntryDetails"
   }
 }

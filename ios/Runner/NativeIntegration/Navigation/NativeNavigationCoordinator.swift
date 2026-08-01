@@ -10,6 +10,8 @@ final class NativeNavigationCoordinator {
   private var navigationBarHost: AnyObject?
   private var dashboardBridge: AnyObject?
   private var nativeDashboardHost: UIViewController?
+  private var entriesBridge: NativeEntriesBridge?
+  private var nativeEntryHosts: [NativeEntryListType: UIViewController] = [:]
   private var settingsButton: NativeSettingsButtonView?
   private var selectedTabIndex = 0
   private var searchModeActive = false
@@ -53,9 +55,7 @@ final class NativeNavigationCoordinator {
           channel?.invokeMethod(NativeChannelConstants.NavigationMethod.openSettings, arguments: nil)
         },
         onEntrySelected: { [weak self, weak dashboardBridge] id in
-          self?.flutterDetailVisible = true
-          self?.updateNativeSurfaceVisibility(animated: false)
-          dashboardBridge?.openEntryDetails(id: id)
+          self?.openNativeDetails(id: id, bridge: dashboardBridge)
         }
       )
       self.dashboardBridge = dashboardBridge
@@ -71,6 +71,34 @@ final class NativeNavigationCoordinator {
       ])
       dashboardHost.didMove(toParent: rootViewController)
       nativeDashboardInstalled = true
+      let entriesBridge = NativeEntriesBridge(binaryMessenger: rootViewController.binaryMessenger)
+      self.entriesBridge = entriesBridge
+      for type in [NativeEntryListType.owedToMe, .owedByMe, .scratchpad] {
+        let host = NativeEntriesHostController(
+          store: entriesBridge.store,
+          type: type,
+          onAdd: { [weak self] in
+            _ = self?.sheetCoordinator.presentNativeEntryForm(type: type.rawValue)
+          },
+          onSettings: { [weak channel] in
+            channel?.invokeMethod(NativeChannelConstants.NavigationMethod.openSettings, arguments: nil)
+          },
+          onEntrySelected: { [weak self, weak entriesBridge] id in
+            self?.openNativeDetails(id: id, bridge: entriesBridge)
+          }
+        )
+        rootViewController.addChild(host)
+        rootViewController.view.addSubview(host.view)
+        host.view.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+          host.view.leadingAnchor.constraint(equalTo: rootViewController.view.leadingAnchor),
+          host.view.trailingAnchor.constraint(equalTo: rootViewController.view.trailingAnchor),
+          host.view.topAnchor.constraint(equalTo: rootViewController.view.topAnchor),
+          host.view.bottomAnchor.constraint(equalTo: rootViewController.view.bottomAnchor),
+        ])
+        host.didMove(toParent: rootViewController)
+        nativeEntryHosts[type] = host
+      }
     }
     let navigationView = NativeFloatingNavigationView(
       onTabSelected: { [weak channel] index in
@@ -254,12 +282,24 @@ final class NativeNavigationCoordinator {
         !searchModeActive &&
         !flutterDetailVisible
       let shouldShowLegacyHeader =
-        navigationVisible &&
-        !homeSelected &&
-        !searchModeActive &&
-        !flutterDetailVisible
+        false
 
       nativeDashboardHost?.view.isHidden = !shouldShowNativeDashboard
+      for (type, host) in nativeEntryHosts {
+        let tabIndex: Int
+        switch type {
+        case .owedToMe: tabIndex = 1
+        case .owedByMe: tabIndex = 2
+        case .scratchpad: tabIndex = 3
+        }
+        host.view.isHidden = !(
+          nativeDashboardInstalled &&
+          navigationVisible &&
+          selectedTabIndex == tabIndex &&
+          !searchModeActive &&
+          !flutterDetailVisible
+        )
+      }
       (navigationBarHost as? DaftariNavigationBarHostViewController)?.setVisible(
         shouldShowLegacyHeader,
         animated: animated
@@ -282,6 +322,17 @@ final class NativeNavigationCoordinator {
         navigationVisible && !searchModeActive,
         animated: animated
       )
+    }
+  }
+
+  private func openNativeDetails(id: String, bridge: AnyObject?) {
+    guard !flutterDetailVisible else { return }
+    flutterDetailVisible = true
+    updateNativeSurfaceVisibility(animated: false)
+    if let bridge = bridge as? NativeDashboardBridge {
+      bridge.openEntryDetails(id: id)
+    } else if let bridge = bridge as? NativeEntriesBridge {
+      bridge.openEntryDetails(id: id)
     }
   }
 

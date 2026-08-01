@@ -6,15 +6,23 @@ import 'package:debt_tracker/presentation/providers/app_providers.dart';
 import 'package:flutter/services.dart';
 
 const _nativeDashboardChannel = 'com.daftari/native_dashboard';
+const _nativeEntriesChannel = 'com.daftari/native_entries';
 
 class NativeDashboardChannel {
-  NativeDashboardChannel({MethodChannel? channel, bool Function()? isIos})
+  NativeDashboardChannel({
+    MethodChannel? channel,
+    MethodChannel? entriesChannel,
+    bool Function()? isIos,
+  })
     : _channel = channel ?? const MethodChannel(_nativeDashboardChannel),
+      _entriesChannel = entriesChannel ?? const MethodChannel(_nativeEntriesChannel),
       _isIos = isIos ?? (() => Platform.isIOS) {
     _channel.setMethodCallHandler(_handleNativeCall);
+    _entriesChannel.setMethodCallHandler(_handleNativeCall);
   }
 
   final MethodChannel _channel;
+  final MethodChannel _entriesChannel;
   final bool Function() _isIos;
   Map<String, dynamic>? _lastSnapshot;
   Future<void> Function(String id)? onOpenEntryDetails;
@@ -84,10 +92,31 @@ class NativeDashboardChannel {
             ),
           },
       ],
+      'entries': [
+        for (final entry in list)
+          {
+            'id': entry.id.toString(),
+            'title': entry.title,
+            'type': switch (entry.type) {
+              EntryType.owedToMe => 'owedToMe',
+              EntryType.owedByMe => 'owedByMe',
+              EntryType.scratchpad => 'scratchpad',
+            },
+            'amountText': AppFormatters.money.format(
+              entry.type == EntryType.scratchpad
+                  ? entry.amount ?? 0
+                  : entry.remainingAmount,
+            ),
+            'dateText': AppFormatters.date.format(
+              entry.debtDate ?? entry.createdAt,
+            ),
+          },
+      ],
     };
     _lastSnapshot = payload;
     try {
       await _channel.invokeMethod<void>('dashboardSnapshotUpdated', payload);
+      await _entriesChannel.invokeMethod<void>('entriesSnapshotUpdated', payload);
     } on PlatformException {
       // Native Dashboard is optional; Flutter remains the fallback.
     } on MissingPluginException {
