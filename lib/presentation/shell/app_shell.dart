@@ -27,6 +27,9 @@ class AppShell extends ConsumerStatefulWidget {
 
 class _AppShellState extends ConsumerState<AppShell> {
   int _index = 0;
+  bool _searchActive = false;
+  String _searchQuery = '';
+  int _searchPreviousIndex = 0;
 
   final _titles = const <String>[
     'Dashboard',
@@ -40,6 +43,9 @@ class _AppShellState extends ConsumerState<AppShell> {
     super.initState();
     iosNavigationChannel.onTabSelected = _selectTab;
     iosNavigationChannel.onAddRequested = _openAddFromNative;
+    iosNavigationChannel.onSettingsRequested = _openSettings;
+    iosNavigationChannel.onSearchQueryChanged = _onNativeSearchQueryChanged;
+    iosNavigationChannel.onSearchDismissed = _dismissSearch;
     nativeSheetsChannel.onAddEntryTypeSelected = _handleNativeEntryType;
     nativeSheetsChannel.onNativeEntryFormSubmitted = _saveNativeEntry;
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -52,18 +58,71 @@ class _AppShellState extends ConsumerState<AppShell> {
   void dispose() {
     iosNavigationChannel.onTabSelected = null;
     iosNavigationChannel.onAddRequested = null;
+    iosNavigationChannel.onSettingsRequested = null;
+    iosNavigationChannel.onSearchQueryChanged = null;
+    iosNavigationChannel.onSearchDismissed = null;
     nativeSheetsChannel.onAddEntryTypeSelected = null;
     nativeSheetsChannel.onNativeEntryFormSubmitted = null;
     unawaited(iosNavigationChannel.setNavigationVisible(false));
     super.dispose();
   }
 
+  bool _searchRouteOpening = false;
+
   void _openSearch() {
-    Navigator.of(context).push(AppPageRoute(child: const SearchScreen()));
+    if (Platform.isIOS) {
+      _enterSearch();
+      return;
+    }
+    unawaited(_pushAndroidSearch());
   }
 
-  void _openSettings() {
-    Navigator.of(context).push(AppPageRoute(child: const SettingsScreen()));
+  Future<void> _pushAndroidSearch() async {
+    if (_searchRouteOpening) return;
+    _searchRouteOpening = true;
+    try {
+      await Navigator.of(
+        context,
+      ).push(AppPageRoute<void>(child: const SearchScreen()));
+    } finally {
+      _searchRouteOpening = false;
+    }
+  }
+
+  void _enterSearch() {
+    if (_searchActive) {
+      unawaited(iosNavigationChannel.setSearchVisible(true));
+      return;
+    }
+    _searchPreviousIndex = _index;
+    setState(() {
+      _searchActive = true;
+      _searchQuery = '';
+    });
+    unawaited(iosNavigationChannel.setSearchVisible(true));
+  }
+
+  void _onNativeSearchQueryChanged(String query) {
+    if (!_searchActive) return;
+    setState(() => _searchQuery = query.trim());
+  }
+
+  void _dismissSearch({int? nextIndex}) {
+    if (!_searchActive) return;
+    final restoredIndex = nextIndex ?? _searchPreviousIndex;
+    setState(() {
+      _searchActive = false;
+      _searchQuery = '';
+      _index = restoredIndex;
+    });
+    unawaited(iosNavigationChannel.setSearchVisible(false));
+    unawaited(iosNavigationChannel.setSelectedTab(restoredIndex));
+  }
+
+  Future<void> _openSettings() async {
+    await Navigator.of(
+      context,
+    ).push(AppPageRoute(child: const SettingsScreen()));
   }
 
   void _openForm({EntryType? initialType, Entry? entry}) {
@@ -205,8 +264,11 @@ class _AppShellState extends ConsumerState<AppShell> {
 
   void _selectTab(int index) {
     if (index == 4) {
-      _openSearch();
-      unawaited(iosNavigationChannel.setSelectedTab(_index));
+      _enterSearch();
+      return;
+    }
+    if (_searchActive) {
+      _dismissSearch(nextIndex: index);
       return;
     }
     if (_index == index) return;
@@ -243,26 +305,36 @@ class _AppShellState extends ConsumerState<AppShell> {
 
     return Scaffold(
       extendBody: true,
-      appBar: AppBar(
-        title: Text(_titles[_index]),
-        actions: [
-          if (showSearch)
-            IconButton(
-              tooltip: 'Search',
-              icon: const Icon(Icons.search_rounded),
-              onPressed: _openSearch,
+      appBar: _searchActive
+          ? null
+          : AppBar(
+              title: Text(_titles[_index]),
+              actions: [
+                if (showSearch && !useNativeIosNavigation)
+                  IconButton(
+                    tooltip: 'Search',
+                    icon: const Icon(Icons.search_rounded),
+                    onPressed: _openSearch,
+                  ),
+                if (!useNativeIosNavigation)
+                  IconButton(
+                    tooltip: 'Settings',
+                    icon: const Icon(Icons.settings_rounded),
+                    onPressed: _openSettings,
+                  ),
+              ],
             ),
-
-          IconButton(
-            tooltip: 'Settings',
-            icon: const Icon(Icons.settings_rounded),
-            onPressed: _openSettings,
-          ),
-        ],
-      ),
       body: Stack(
         children: [
-          IndexedStack(index: _index, children: pages),
+          if (_searchActive)
+            SafeArea(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(16, 64, 16, 120),
+                children: [SearchResultsBody(query: _searchQuery)],
+              ),
+            )
+          else
+            IndexedStack(index: _index, children: pages),
           Positioned(
             top: 0,
             left: 0,

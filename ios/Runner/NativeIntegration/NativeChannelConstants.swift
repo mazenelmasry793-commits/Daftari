@@ -10,6 +10,7 @@ enum NativeChannelConstants {
     static let setNavigationVisible = "setNavigationVisible"
     static let nativeTabSelected = "nativeTabSelected"
     static let openAddEntry = "openAddEntry"
+    static let openSettings = "openSettings"
   }
 
   enum SheetMethod {

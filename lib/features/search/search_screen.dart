@@ -39,9 +39,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final repository = ref.read(entryRepositoryProvider);
-    final scheme = Theme.of(context).colorScheme;
-
     return Scaffold(
       appBar: AppBar(title: const Text('Search')),
       body: ListView(
@@ -72,74 +69,100 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             },
           ),
           const SizedBox(height: 18),
-          if (_query.isEmpty)
-            const EmptyState(
-              icon: Icons.manage_search_rounded,
-              title: 'Search your debts',
-              message: 'Find titles and notes across owed items and scratchpad entries.',
-            )
-          else
-            FutureBuilder<List<Entry>>(
-              future: repository.search(_query),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Padding(
-                    padding: EdgeInsets.only(top: 80),
-                    child: Center(child: CircularProgressIndicator()),
-                  );
-                }
-                final results = snapshot.data ?? <Entry>[];
-                if (results.isEmpty) {
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 80),
-                    child: EmptyState(
-                      icon: Icons.search_off_rounded,
-                      title: 'No results found',
-                      message: 'Try a different title or note keyword.',
-                    ),
-                  );
-                }
-
-                final sections = <EntryType, List<Entry>>{
-                  EntryType.owedToMe: results.where((entry) => entry.type == EntryType.owedToMe).toList(),
-                  EntryType.owedByMe: results.where((entry) => entry.type == EntryType.owedByMe).toList(),
-                  EntryType.scratchpad: results.where((entry) => entry.type == EntryType.scratchpad).toList(),
-                };
-
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SectionHeader(
-                      title: 'Results',
-                      action: Text(
-                        '${results.length} matches',
-                        style: Theme.of(context).textTheme.labelLarge?.copyWith(color: scheme.onSurfaceVariant),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    for (final section in EntryType.values)
-                      if (sections[section]!.isNotEmpty) ...[
-                        SectionHeader(title: section.label),
-                        const SizedBox(height: 10),
-                        ...sections[section]!.map(
-                          (entry) => Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: EntryCard(
-                              entry: entry,
-                              onTap: () => Navigator.of(context).push(
-                                AppPageRoute(child: EntryDetailsScreen(entryId: entry.id)),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                      ],
-                  ],
-                );
-              },
-            ),
+          SearchResultsBody(query: _query),
         ],
       ),
+    );
+  }
+}
+
+class SearchResultsBody extends ConsumerWidget {
+  const SearchResultsBody({required this.query, super.key});
+
+  final String query;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final repository = ref.read(entryRepositoryProvider);
+    final scheme = Theme.of(context).colorScheme;
+
+    if (query.isEmpty) {
+      return const EmptyState(
+        icon: Icons.manage_search_rounded,
+        title: 'Search your debts',
+        message:
+            'Find titles and notes across owed items and scratchpad entries.',
+      );
+    }
+
+    return FutureBuilder<List<Entry>>(
+      future: repository.search(query),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Padding(
+            padding: EdgeInsets.only(top: 80),
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+        final results = snapshot.data ?? <Entry>[];
+        if (results.isEmpty) {
+          return const Padding(
+            padding: EdgeInsets.only(top: 80),
+            child: EmptyState(
+              icon: Icons.search_off_rounded,
+              title: 'No results found',
+              message: 'Try a different title or note keyword.',
+            ),
+          );
+        }
+
+        final sections = <EntryType, List<Entry>>{
+          EntryType.owedToMe: results
+              .where((entry) => entry.type == EntryType.owedToMe)
+              .toList(),
+          EntryType.owedByMe: results
+              .where((entry) => entry.type == EntryType.owedByMe)
+              .toList(),
+          EntryType.scratchpad: results
+              .where((entry) => entry.type == EntryType.scratchpad)
+              .toList(),
+        };
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SectionHeader(
+              title: 'Results',
+              action: Text(
+                '${results.length} matches',
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            for (final section in EntryType.values)
+              if (sections[section]!.isNotEmpty) ...[
+                SectionHeader(title: section.label),
+                const SizedBox(height: 10),
+                ...sections[section]!.map(
+                  (entry) => Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: EntryCard(
+                      entry: entry,
+                      onTap: () => Navigator.of(context).push(
+                        AppPageRoute(
+                          child: EntryDetailsScreen(entryId: entry.id),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 6),
+              ],
+          ],
+        );
+      },
     );
   }
 }

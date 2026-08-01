@@ -1,29 +1,57 @@
 import UIKit
 
 final class NativeFloatingNavigationView: UIView, UITabBarDelegate {
+  private enum SearchState {
+    case normal
+    case entering
+    case searching
+    case exiting
+  }
+
   private let onTabSelected: (Int) -> Void
   private let onAddEntryTypeSelected: (String) -> Void
+  private let onSearchQueryChanged: (String) -> Void
+  private let onSearchDismissed: () -> Void
+  private let onSearchModeChanged: (Bool) -> Void
   private let tabBar = UITabBar()
   private let addButton = UIButton(type: .system)
+  private let searchBar = NativeSearchBarView()
   private let rowContainer = UIView()
+  private let groupContainer = UIView()
   // iOS 26's native Liquid Glass platter reserves 21 pt on each horizontal
   // side. The 16 pt visible gap keeps the platter and + control distinct.
   private let liquidGlassHorizontalInset: CGFloat = 21
   private let visibleTabBarButtonGap: CGFloat = 16
+  // The platter's 21 pt leading inset shifts the visible group right by half
+  // that amount, so the responsive parent group is centered with this offset.
+  private let liquidGlassCenteringCompensation: CGFloat = -10.5
   // A subtle, shared downward shift that keeps both native controls together.
   private let bottomNavigationLowering: CGFloat = 4
   private var wantsVisible = false
   private var keyboardVisible = false
+  private var searchState: SearchState = .normal
 
-  init(onTabSelected: @escaping (Int) -> Void, onAddEntryTypeSelected: @escaping (String) -> Void) {
+  init(
+    onTabSelected: @escaping (Int) -> Void,
+    onAddEntryTypeSelected: @escaping (String) -> Void,
+    onSearchQueryChanged: @escaping (String) -> Void,
+    onSearchDismissed: @escaping () -> Void,
+    onSearchModeChanged: @escaping (Bool) -> Void
+  ) {
     self.onTabSelected = onTabSelected
     self.onAddEntryTypeSelected = onAddEntryTypeSelected
+    self.onSearchQueryChanged = onSearchQueryChanged
+    self.onSearchDismissed = onSearchDismissed
+    self.onSearchModeChanged = onSearchModeChanged
     super.init(frame: .zero)
     isUserInteractionEnabled = false
     isHidden = true
     alpha = 0
     backgroundColor = .clear
     setupViews()
+    searchBar.onQueryChanged = { [weak self] query in
+      self?.onSearchQueryChanged(query)
+    }
     observeKeyboard()
     updateVisibility(animated: false)
   }
@@ -62,38 +90,16 @@ final class NativeFloatingNavigationView: UIView, UITabBarDelegate {
     tabBar.selectedItem = items.first
 
     addButton.translatesAutoresizingMaskIntoConstraints = false
-    addButton.accessibilityLabel = "Add entry"
-    addButton.accessibilityHint = "Opens the new entry menu"
-    addButton.addTarget(self, action: #selector(addTapped), for: .touchDown)
-    if #available(iOS 14.0, *) {
-      addButton.showsMenuAsPrimaryAction = true
-      addButton.menu = makeAddMenu()
-    } else {
-      addButton.addTarget(self, action: #selector(addMenuUnsupported), for: .touchUpInside)
-    }
-
-    let plusConfig = UIImage.SymbolConfiguration(pointSize: 22, weight: .medium)
-    if #available(iOS 26.0, *) {
-      var config = UIButton.Configuration.clearGlass()
-      config.image = UIImage(systemName: "plus", withConfiguration: plusConfig)
-      config.baseForegroundColor = .label
-      addButton.configuration = config
-    } else if #available(iOS 15.0, *) {
-      var config = UIButton.Configuration.tinted()
-      config.image = UIImage(systemName: "plus", withConfiguration: plusConfig)
-      config.cornerStyle = .capsule
-      config.baseForegroundColor = .label
-      addButton.configuration = config
-    } else {
-      addButton.setImage(UIImage(systemName: "plus", withConfiguration: plusConfig), for: .normal)
-      addButton.tintColor = .label
-      addButton.layer.cornerRadius = 26
-    }
+    configureActionButton(forSearchMode: false)
 
     rowContainer.translatesAutoresizingMaskIntoConstraints = false
     rowContainer.backgroundColor = .clear
-    rowContainer.addSubview(tabBar)
-    rowContainer.addSubview(addButton)
+    groupContainer.translatesAutoresizingMaskIntoConstraints = false
+    groupContainer.backgroundColor = .clear
+    rowContainer.addSubview(groupContainer)
+    groupContainer.addSubview(tabBar)
+    groupContainer.addSubview(searchBar)
+    groupContainer.addSubview(addButton)
     addSubview(rowContainer)
     NSLayoutConstraint.activate([
       rowContainer.leadingAnchor.constraint(equalTo: leadingAnchor),
@@ -103,14 +109,34 @@ final class NativeFloatingNavigationView: UIView, UITabBarDelegate {
         constant: bottomNavigationLowering
       ),
       rowContainer.heightAnchor.constraint(equalToConstant: 83),
-      tabBar.leadingAnchor.constraint(equalTo: rowContainer.leadingAnchor),
+      groupContainer.widthAnchor.constraint(equalTo: rowContainer.widthAnchor),
+      groupContainer.centerXAnchor.constraint(
+        equalTo: rowContainer.centerXAnchor,
+        constant: liquidGlassCenteringCompensation
+      ),
+      groupContainer.topAnchor.constraint(equalTo: rowContainer.topAnchor),
+      groupContainer.bottomAnchor.constraint(equalTo: rowContainer.bottomAnchor),
+      tabBar.leadingAnchor.constraint(equalTo: groupContainer.leadingAnchor),
       tabBar.trailingAnchor.constraint(
         equalTo: addButton.leadingAnchor,
         constant: liquidGlassHorizontalInset - visibleTabBarButtonGap
       ),
-      tabBar.topAnchor.constraint(equalTo: rowContainer.topAnchor),
-      tabBar.bottomAnchor.constraint(equalTo: rowContainer.bottomAnchor),
-      addButton.trailingAnchor.constraint(equalTo: rowContainer.trailingAnchor),
+      tabBar.topAnchor.constraint(equalTo: groupContainer.topAnchor),
+      tabBar.bottomAnchor.constraint(equalTo: groupContainer.bottomAnchor),
+      // Match the tab bar's measured Liquid Glass platter inset so the
+      // search field occupies the same visible pill, not the outer UITabBar
+      // frame.
+      searchBar.leadingAnchor.constraint(
+        equalTo: tabBar.leadingAnchor,
+        constant: liquidGlassHorizontalInset
+      ),
+      searchBar.trailingAnchor.constraint(
+        equalTo: tabBar.trailingAnchor,
+        constant: -liquidGlassHorizontalInset
+      ),
+      searchBar.topAnchor.constraint(equalTo: tabBar.topAnchor),
+      searchBar.bottomAnchor.constraint(equalTo: tabBar.bottomAnchor),
+      addButton.trailingAnchor.constraint(equalTo: groupContainer.trailingAnchor),
       addButton.centerYAnchor.constraint(equalTo: tabBar.topAnchor, constant: 31),
       addButton.widthAnchor.constraint(equalToConstant: 52),
       addButton.heightAnchor.constraint(equalToConstant: 52),
@@ -119,11 +145,123 @@ final class NativeFloatingNavigationView: UIView, UITabBarDelegate {
 
   func tabBar(_ tabBar: UITabBar, didSelect item: UITabBarItem) {
     UISelectionFeedbackGenerator().selectionChanged()
+    if item.tag == 4 {
+      enterSearchMode()
+    }
     onTabSelected(item.tag)
   }
 
   @objc private func addTapped() {
     UIImpactFeedbackGenerator(style: .light).impactOccurred()
+  }
+
+  @objc private func closeSearchTapped() {
+    guard searchState == .searching else { return }
+    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+    exitSearchMode(notify: true)
+  }
+
+  private func configureActionButton(forSearchMode searchMode: Bool) {
+    addButton.removeTarget(nil, action: nil, for: .allEvents)
+    if #available(iOS 14.0, *) {
+      addButton.menu = nil
+      addButton.showsMenuAsPrimaryAction = false
+    }
+    let symbolConfiguration = UIImage.SymbolConfiguration(pointSize: 22, weight: .medium)
+    let symbolName = searchMode ? "xmark" : "plus"
+    let image = UIImage(systemName: symbolName, withConfiguration: symbolConfiguration)
+    addButton.accessibilityLabel = searchMode ? "Close search" : "Add entry"
+    addButton.accessibilityHint = searchMode ? nil : "Opens the new entry menu"
+
+    if #available(iOS 26.0, *) {
+      var config = UIButton.Configuration.clearGlass()
+      config.image = image
+      config.baseForegroundColor = .label
+      addButton.configuration = config
+    } else if #available(iOS 15.0, *) {
+      var config = UIButton.Configuration.tinted()
+      config.image = image
+      config.cornerStyle = .capsule
+      config.baseForegroundColor = .label
+      addButton.configuration = config
+    } else {
+      addButton.setImage(image, for: .normal)
+      addButton.tintColor = .label
+      addButton.layer.cornerRadius = 26
+    }
+
+    if searchMode {
+      addButton.addTarget(self, action: #selector(closeSearchTapped), for: .touchUpInside)
+    } else {
+      addButton.addTarget(self, action: #selector(addTapped), for: .touchDown)
+      if #available(iOS 14.0, *) {
+        addButton.showsMenuAsPrimaryAction = true
+        addButton.menu = makeAddMenu()
+      } else {
+        addButton.addTarget(self, action: #selector(addMenuUnsupported), for: .touchUpInside)
+      }
+    }
+  }
+
+  private func enterSearchMode() {
+    guard searchState == .normal else { return }
+    searchState = .entering
+    onSearchModeChanged(true)
+    searchBar.setSearchVisible(true, animated: false)
+    searchBar.alpha = 0
+    tabBar.isUserInteractionEnabled = false
+    configureActionButton(forSearchMode: true)
+    animateSearchTransition(entering: true)
+  }
+
+  func setSearchVisible(_ visible: Bool) {
+    if visible {
+      enterSearchMode()
+    } else if searchState == .searching || searchState == .entering {
+      exitSearchMode(notify: false)
+    }
+  }
+
+  private func exitSearchMode(notify: Bool) {
+    guard searchState == .searching || searchState == .entering else { return }
+    searchState = .exiting
+    onSearchModeChanged(false)
+    searchBar.setSearchVisible(false, animated: false)
+    tabBar.isUserInteractionEnabled = true
+    configureActionButton(forSearchMode: false)
+    animateSearchTransition(entering: false)
+    if notify {
+      onSearchDismissed()
+    }
+  }
+
+  private func animateSearchTransition(entering: Bool) {
+    let reduceMotion = UIAccessibility.isReduceMotionEnabled
+    let changes = {
+      self.tabBar.alpha = entering ? 0 : 1
+      self.searchBar.alpha = entering ? 1 : 0
+      self.addButton.transform = entering ? CGAffineTransform(scaleX: 0.94, y: 0.94) : .identity
+    }
+    let completion: (Bool) -> Void = { _ in
+      self.searchState = entering ? .searching : .normal
+      self.searchBar.isHidden = !entering
+      self.tabBar.isHidden = entering
+      self.addButton.transform = .identity
+    }
+    searchBar.isHidden = false
+    tabBar.isHidden = false
+    if reduceMotion {
+      changes()
+      completion(true)
+    } else {
+      UIView.animate(
+        withDuration: 0.24,
+        delay: 0,
+        options: [.allowUserInteraction, .beginFromCurrentState, .curveEaseInOut],
+        animations: changes,
+        completion: completion
+      )
+    }
   }
 
   @available(iOS 14.0, *)
@@ -183,7 +321,7 @@ final class NativeFloatingNavigationView: UIView, UITabBarDelegate {
   }
 
   private func updateVisibility(animated: Bool) {
-    let visible = wantsVisible && !keyboardVisible
+    let visible = wantsVisible && (!keyboardVisible || searchState != .normal)
     isUserInteractionEnabled = visible
     let changes = {
       self.alpha = visible ? 1 : 0

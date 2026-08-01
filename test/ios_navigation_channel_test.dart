@@ -40,6 +40,44 @@ void main() {
     },
   );
 
+  test('native Search tab is forwarded to Flutter', () async {
+    const channel = MethodChannel('test.ios.navigation.search');
+    final navigation = IosNavigationChannel(
+      channel: channel,
+      isIos: () => true,
+    );
+    var selectedIndex = -1;
+    navigation.onTabSelected = (index) => selectedIndex = index;
+
+    await navigation.handleNativeCall(
+      const MethodCall('nativeTabSelected', {'index': 4}),
+    );
+
+    expect(selectedIndex, 4);
+  });
+
+  test('native search query and dismissal callbacks reach Flutter', () async {
+    const channel = MethodChannel('test.ios.navigation.search_callbacks');
+    final navigation = IosNavigationChannel(
+      channel: channel,
+      isIos: () => true,
+    );
+    String? query;
+    var dismissed = false;
+    navigation.onSearchQueryChanged = (value) => query = value;
+    navigation.onSearchDismissed = () => dismissed = true;
+
+    await navigation.handleNativeCall(
+      const MethodCall('nativeSearchQueryChanged', 'notes'),
+    );
+    await navigation.handleNativeCall(
+      const MethodCall('nativeSearchDismissed'),
+    );
+
+    expect(query, 'notes');
+    expect(dismissed, isTrue);
+  });
+
   test('rapid native add requests open one chooser at a time', () async {
     const channel = MethodChannel('test.ios.navigation.add');
     final navigation = IosNavigationChannel(
@@ -62,6 +100,34 @@ void main() {
     await navigation.handleNativeCall(const MethodCall('openAddEntry'));
     expect(opens, 2);
   });
+
+  test(
+    'rapid native settings requests open one settings route at a time',
+    () async {
+      const channel = MethodChannel('test.ios.navigation.settings');
+      final navigation = IosNavigationChannel(
+        channel: channel,
+        isIos: () => true,
+      );
+      final completer = Completer<void>();
+      var opens = 0;
+      navigation.onSettingsRequested = () {
+        opens++;
+        return completer.future;
+      };
+
+      final first = navigation.handleNativeCall(
+        const MethodCall('openSettings'),
+      );
+      await navigation.handleNativeCall(const MethodCall('openSettings'));
+      expect(opens, 1);
+
+      completer.complete();
+      await first;
+      await navigation.handleNativeCall(const MethodCall('openSettings'));
+      expect(opens, 2);
+    },
+  );
 
   test('Android does not send native navigation commands', () async {
     const channel = MethodChannel('test.ios.navigation.android');
@@ -140,7 +206,10 @@ void main() {
     await navigation.setNavigationVisible(true);
     await navigation.setNavigationVisible(false);
 
-    expect(calls.map((c) => c.method), ['setNavigationVisible', 'setNavigationVisible']);
+    expect(calls.map((c) => c.method), [
+      'setNavigationVisible',
+      'setNavigationVisible',
+    ]);
     expect(calls.map((c) => c.arguments), [
       {'visible': true},
       {'visible': false},

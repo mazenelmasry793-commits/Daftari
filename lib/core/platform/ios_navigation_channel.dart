@@ -17,14 +17,18 @@ class IosNavigationChannel {
   final bool Function() _isIos;
   ValueChanged<int>? onTabSelected;
   Future<void> Function()? onAddRequested;
+  Future<void> Function()? onSettingsRequested;
+  ValueChanged<String>? onSearchQueryChanged;
+  VoidCallback? onSearchDismissed;
   bool _addRequestInProgress = false;
+  bool _settingsRequestInProgress = false;
 
   Future<dynamic> handleNativeCall(MethodCall call) async {
     switch (call.method) {
       case 'nativeTabSelected':
         final arguments = call.arguments;
         final index = arguments is Map ? arguments['index'] : null;
-        if (index is int && index >= 0 && index < 4) {
+        if (index is int && index >= 0 && index <= 4) {
           onTabSelected?.call(index);
         }
         return null;
@@ -38,6 +42,24 @@ class IosNavigationChannel {
         } finally {
           _addRequestInProgress = false;
         }
+        return null;
+      case 'openSettings':
+        if (_settingsRequestInProgress || onSettingsRequested == null) {
+          return null;
+        }
+        _settingsRequestInProgress = true;
+        try {
+          await onSettingsRequested!();
+        } finally {
+          _settingsRequestInProgress = false;
+        }
+        return null;
+      case 'nativeSearchQueryChanged':
+        final query = call.arguments as String?;
+        if (query != null) onSearchQueryChanged?.call(query);
+        return null;
+      case 'nativeSearchDismissed':
+        onSearchDismissed?.call();
         return null;
       default:
         throw MissingPluginException(
@@ -56,6 +78,11 @@ class IosNavigationChannel {
     await _channel.invokeMethod<void>('setNavigationVisible', {
       'visible': visible,
     });
+  }
+
+  Future<void> setSearchVisible(bool visible) async {
+    if (!_isIos()) return;
+    await _channel.invokeMethod<void>('setSearchVisible', {'visible': visible});
   }
 }
 
