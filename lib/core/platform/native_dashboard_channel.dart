@@ -116,9 +116,6 @@ class NativeDashboardChannel {
                   ? entry.amount ?? 0
                   : entry.remainingAmount,
             ),
-            // Schema v1 sortable timestamp for native presentation sorting.
-            'dateIso8601': (entry.debtDate ?? entry.createdAt)
-                .toIso8601String(),
             'dateText': AppFormatters.date.format(
               entry.debtDate ?? entry.createdAt,
             ),

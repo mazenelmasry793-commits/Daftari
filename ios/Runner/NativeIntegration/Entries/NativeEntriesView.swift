@@ -7,15 +7,8 @@ struct NativeEntriesView: View {
   let onAdd: () -> Void
   let onSettings: () -> Void
   let onEntrySelected: (String) -> Void
-  @Environment(\.accessibilityReduceMotion) private var reduceMotion
-  @State private var sortOrder: NativeEntryDateSortOrder = .newestFirst
 
-  private var filteredEntries: [NativeEntryListItem] {
-    let entries = store.entries(for: type)
-    guard type == .owedToMe else { return entries }
-
-    return sortedNativeEntries(entries, order: sortOrder)
-  }
+  private var filteredEntries: [NativeEntryListItem] { store.entries(for: type) }
 
   var body: some View {
     NavigationStack {
@@ -91,7 +84,6 @@ struct NativeEntriesView: View {
             Text("\(store.owedToMeEntryCount)")
               .font(.headline)
               .foregroundStyle(.secondary)
-            OwedToMeSortButton(sortOrder: $sortOrder, reduceMotion: reduceMotion)
           }
           .padding(.top, 0)
           OwedToMeGroupedList(
@@ -159,34 +151,6 @@ private struct OwedToMeSummaryCard: View {
     .shadow(color: .black.opacity(0.10), radius: 10, y: 5)
     .accessibilityElement(children: .combine)
     .accessibilityLabel("Total owed \(totalText)")
-  }
-}
-
-@available(iOS 26.0, *)
-private struct OwedToMeSortButton: View {
-  @Binding var sortOrder: NativeEntryDateSortOrder
-  let reduceMotion: Bool
-
-  var body: some View {
-    Button {
-      if reduceMotion {
-        sortOrder = sortOrder.toggled
-      } else {
-        withAnimation(.snappy) {
-          sortOrder = sortOrder.toggled
-        }
-      }
-    } label: {
-      Image(systemName: sortOrder.symbolName)
-        .font(.headline.weight(.semibold))
-        .frame(width: 44, height: 44)
-        .contentTransition(.symbolEffect(.replace))
-    }
-    .buttonStyle(.plain)
-    .background(.thinMaterial, in: Circle())
-    .accessibilityLabel("Sort entries")
-    .accessibilityValue(sortOrder.spokenValue)
-    .accessibilityHint(sortOrder.hint)
   }
 }
 
