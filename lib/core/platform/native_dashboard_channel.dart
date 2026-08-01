@@ -116,6 +116,11 @@ class NativeDashboardChannel {
                   ? entry.amount ?? 0
                   : entry.remainingAmount,
             ),
+            'previewText': entry.type == EntryType.scratchpad
+                ? (entry.note?.trim() ?? '')
+                : '',
+            'updatedAtIso8601': entry.updatedAt.toIso8601String(),
+            'updatedAtText': AppFormatters.date.format(entry.updatedAt),
             'dateText': AppFormatters.date.format(
               entry.debtDate ?? entry.createdAt,
             ),
