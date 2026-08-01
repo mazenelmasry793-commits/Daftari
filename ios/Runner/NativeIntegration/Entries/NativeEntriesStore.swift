@@ -7,6 +7,12 @@ final class NativeEntriesStore: ObservableObject {
   @Published private(set) var owedToMeEntryCount = 0
   @Published private(set) var errorMessage: String?
 
+  private let iso8601Formatter: ISO8601DateFormatter = {
+    let formatter = ISO8601DateFormatter()
+    formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+    return formatter
+  }()
+
   func apply(payload: Any?) {
     guard let payload = payload as? [String: Any],
           let rawEntries = payload["entries"] as? [[String: Any]] else {
@@ -22,7 +28,7 @@ final class NativeEntriesStore: ObservableObject {
             let dateText = raw["dateText"] as? String else { return nil }
       let date: Date
       if let dateIso8601 = raw["dateIso8601"] as? String,
-         let parsedDate = ISO8601DateFormatter().date(from: dateIso8601) {
+         let parsedDate = iso8601Formatter.date(from: dateIso8601) {
         date = parsedDate
       } else {
         // Keep older snapshots renderable while newer snapshots provide the

@@ -19,6 +19,41 @@ struct NativeEntryListItem: Identifiable, Equatable {
   }
 }
 
+enum NativeEntryDateSortOrder: Equatable {
+  case newestFirst
+  case oldestFirst
+
+  var toggled: NativeEntryDateSortOrder {
+    self == .newestFirst ? .oldestFirst : .newestFirst
+  }
+
+  var symbolName: String { self == .newestFirst ? "arrow.down" : "arrow.up" }
+  var spokenValue: String { self == .newestFirst ? "Newest first" : "Oldest first" }
+  var hint: String {
+    self == .newestFirst
+      ? "Double tap to show oldest entries first"
+      : "Double tap to show newest entries first"
+  }
+}
+
+/// Sorts only the native presentation collection, preserving source order for
+/// equal dates so Flutter's canonical ordering remains deterministic.
+func sortedNativeEntries(
+  _ entries: [NativeEntryListItem],
+  order: NativeEntryDateSortOrder
+) -> [NativeEntryListItem] {
+  entries.enumerated()
+    .sorted { lhs, rhs in
+      if lhs.element.date != rhs.element.date {
+        return order == .newestFirst
+          ? lhs.element.date > rhs.element.date
+          : lhs.element.date < rhs.element.date
+      }
+      return lhs.offset < rhs.offset
+    }
+    .map(\.element)
+}
+
 enum NativeEntryListType: String {
   case owedToMe
   case owedByMe

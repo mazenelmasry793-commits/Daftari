@@ -8,21 +8,13 @@ struct NativeEntriesView: View {
   let onSettings: () -> Void
   let onEntrySelected: (String) -> Void
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
-  @State private var sortOrder: DateSortOrder = .newestFirst
+  @State private var sortOrder: NativeEntryDateSortOrder = .newestFirst
 
   private var filteredEntries: [NativeEntryListItem] {
     let entries = store.entries(for: type)
     guard type == .owedToMe else { return entries }
 
-    return entries.enumerated().sorted { lhs, rhs in
-      if lhs.element.date != rhs.element.date {
-        return sortOrder == .newestFirst
-          ? lhs.element.date > rhs.element.date
-          : lhs.element.date < rhs.element.date
-      }
-      // Preserve canonical Flutter source order for equal dates.
-      return lhs.offset < rhs.offset
-    }.map(\.element)
+    return sortedNativeEntries(entries, order: sortOrder)
   }
 
   var body: some View {
@@ -170,31 +162,18 @@ private struct OwedToMeSummaryCard: View {
   }
 }
 
-private enum DateSortOrder: Equatable {
-  case newestFirst
-  case oldestFirst
-
-  var symbolName: String { self == .newestFirst ? "arrow.down" : "arrow.up" }
-  var spokenValue: String { self == .newestFirst ? "Newest first" : "Oldest first" }
-  var hint: String {
-    self == .newestFirst
-      ? "Double tap to show oldest entries first"
-      : "Double tap to show newest entries first"
-  }
-}
-
 @available(iOS 26.0, *)
 private struct OwedToMeSortButton: View {
-  @Binding var sortOrder: DateSortOrder
+  @Binding var sortOrder: NativeEntryDateSortOrder
   let reduceMotion: Bool
 
   var body: some View {
     Button {
       if reduceMotion {
-        sortOrder = sortOrder == .newestFirst ? .oldestFirst : .newestFirst
+        sortOrder = sortOrder.toggled
       } else {
         withAnimation(.snappy) {
-          sortOrder = sortOrder == .newestFirst ? .oldestFirst : .newestFirst
+          sortOrder = sortOrder.toggled
         }
       }
     } label: {
