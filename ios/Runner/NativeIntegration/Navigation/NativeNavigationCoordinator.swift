@@ -7,6 +7,7 @@ final class NativeNavigationCoordinator {
   private var channel: FlutterMethodChannel?
   private var navigationView: NativeFloatingNavigationView?
   private var systemTabBarController: AnyObject?
+  private var navigationBarHost: AnyObject?
   private var settingsButton: NativeSettingsButtonView?
   private var navigationVisible = false
   private var searchModeActive = false
@@ -19,6 +20,9 @@ final class NativeNavigationCoordinator {
     self.sheetCoordinator = sheetCoordinator
     self.sheetCoordinator.onRequestAddEntryMenu = { [weak self] in
       self?.navigationView?.presentAddMenu()
+      if #available(iOS 26.0, *) {
+        (self?.navigationBarHost as? DaftariNavigationBarHostViewController)?.presentAddMenu()
+      }
     }
   }
 
@@ -74,9 +78,6 @@ final class NativeNavigationCoordinator {
         onSearchModeChanged: { [weak self] active in
           self?.searchModeActive = active
           self?.updateSettingsVisibility(animated: true)
-        },
-        onAddEntryTypeSelected: { [weak self] type in
-          _ = self?.sheetCoordinator.presentNativeEntryForm(type: type)
         }
       )
       rootViewController.addChild(systemTabs.viewController)
@@ -90,6 +91,25 @@ final class NativeNavigationCoordinator {
       ])
       systemTabs.viewController.didMove(toParent: rootViewController)
       self.systemTabBarController = systemTabs
+      let navigationBarHost = DaftariNavigationBarHostViewController(
+        onSettingsRequested: { [weak channel] in
+          channel?.invokeMethod(NativeChannelConstants.NavigationMethod.openSettings, arguments: nil)
+        },
+        onAddEntryTypeSelected: { [weak self] type in
+          _ = self?.sheetCoordinator.presentNativeEntryForm(type: type)
+        }
+      )
+      rootViewController.addChild(navigationBarHost)
+      rootViewController.view.addSubview(navigationBarHost.view)
+      navigationBarHost.view.translatesAutoresizingMaskIntoConstraints = false
+      NSLayoutConstraint.activate([
+        navigationBarHost.view.leadingAnchor.constraint(equalTo: rootViewController.view.leadingAnchor),
+        navigationBarHost.view.trailingAnchor.constraint(equalTo: rootViewController.view.trailingAnchor),
+        navigationBarHost.view.topAnchor.constraint(equalTo: rootViewController.view.topAnchor),
+        navigationBarHost.view.heightAnchor.constraint(equalToConstant: 96),
+      ])
+      navigationBarHost.didMove(toParent: rootViewController)
+      self.navigationBarHost = navigationBarHost
     } else {
       rootViewController.view.addSubview(navigationView)
       navigationView.translatesAutoresizingMaskIntoConstraints = false
@@ -158,7 +178,14 @@ final class NativeNavigationCoordinator {
   }
 
   private func updateSettingsVisibility(animated: Bool) {
-    settingsButton?.setVisible(navigationVisible && !searchModeActive, animated: animated)
+    if #available(iOS 26.0, *) {
+      (navigationBarHost as? DaftariNavigationBarHostViewController)?.setVisible(
+        navigationVisible && !searchModeActive,
+        animated: animated
+      )
+    } else {
+      settingsButton?.setVisible(navigationVisible && !searchModeActive, animated: animated)
+    }
   }
 
   deinit {

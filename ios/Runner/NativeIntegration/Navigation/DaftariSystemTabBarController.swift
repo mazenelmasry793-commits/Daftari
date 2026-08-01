@@ -19,8 +19,6 @@ final class DaftariSystemTabBarController: NSObject, UITabBarControllerDelegate 
   private let onSearchModeChanged: (Bool) -> Void
   private let searchHost: DaftariSearchHostViewController
   private let searchNavigationController: UINavigationController
-  private let addButton = UIButton(type: .system)
-  private let accessoryContainer = UIView()
   private let searchTab: UISearchTab
   private var tabsByIdentifier: [String: Int] = [:]
   private var searchIsActive = false
@@ -30,8 +28,7 @@ final class DaftariSystemTabBarController: NSObject, UITabBarControllerDelegate 
     onSearchActivated: @escaping () -> Void,
     onSearchQueryChanged: @escaping (String) -> Void,
     onSearchDismissed: @escaping () -> Void,
-    onSearchModeChanged: @escaping (Bool) -> Void,
-    onAddEntryTypeSelected: @escaping (String) -> Void
+    onSearchModeChanged: @escaping (Bool) -> Void
   ) {
     self.onTabSelected = onTabSelected
     self.onSearchActivated = onSearchActivated
@@ -87,26 +84,11 @@ final class DaftariSystemTabBarController: NSObject, UITabBarControllerDelegate 
     host.onSearchEnded = { [weak self] in
       self?.setSearchActive(false)
     }
-    configureAddButton(onAddEntryTypeSelected: onAddEntryTypeSelected)
-    if #available(iOS 26.0, *) {
-      accessoryContainer.translatesAutoresizingMaskIntoConstraints = false
-      accessoryContainer.addSubview(addButton)
-      NSLayoutConstraint.activate([
-        accessoryContainer.widthAnchor.constraint(equalToConstant: 52),
-        accessoryContainer.heightAnchor.constraint(equalToConstant: 52),
-        addButton.leadingAnchor.constraint(equalTo: accessoryContainer.leadingAnchor),
-        addButton.trailingAnchor.constraint(equalTo: accessoryContainer.trailingAnchor),
-        addButton.topAnchor.constraint(equalTo: accessoryContainer.topAnchor),
-        addButton.bottomAnchor.constraint(equalTo: accessoryContainer.bottomAnchor),
-      ])
-      controller.bottomAccessory = UITabAccessory(contentView: accessoryContainer)
-    }
   }
 
   func setNavigationVisible(_ visible: Bool, animated: Bool) {
     let update = {
       self.viewController.isTabBarHidden = !visible
-      self.accessoryContainer.isHidden = !visible || self.searchIsActive
       self.viewController.view.isUserInteractionEnabled = visible
     }
     guard animated, !UIAccessibility.isReduceMotionEnabled else {
@@ -147,43 +129,6 @@ final class DaftariSystemTabBarController: NSObject, UITabBarControllerDelegate 
   private func setSearchActive(_ active: Bool) {
     guard searchIsActive != active else { return }
     searchIsActive = active
-    accessoryContainer.isHidden = active
-    addButton.isUserInteractionEnabled = !active
     onSearchModeChanged(active)
-  }
-
-  private func configureAddButton(onAddEntryTypeSelected: @escaping (String) -> Void) {
-    addButton.translatesAutoresizingMaskIntoConstraints = false
-    let image = UIImage(
-      systemName: "plus",
-      withConfiguration: UIImage.SymbolConfiguration(pointSize: 22, weight: .medium)
-    )
-    var configuration = UIButton.Configuration.clearGlass()
-    configuration.image = image
-    configuration.baseForegroundColor = .label
-    addButton.configuration = configuration
-    addButton.accessibilityLabel = "Add entry"
-    addButton.accessibilityHint = "Opens the new entry menu"
-    addButton.showsMenuAsPrimaryAction = true
-    addButton.menu = UIMenu(
-      title: "",
-      children: [
-        NativeAddEntryOption.scratchpad,
-        NativeAddEntryOption.owedByMe,
-        NativeAddEntryOption.owedToMe,
-      ].map { option in
-        let action = UIAction(
-          title: option.title,
-          image: UIImage(systemName: option.sfSymbolName)
-        ) { _ in
-          UIImpactFeedbackGenerator(style: .light).impactOccurred()
-          onAddEntryTypeSelected(option.rawValue)
-        }
-        if #available(iOS 15.0, *) {
-          action.subtitle = option.subtitle
-        }
-        return action
-      }
-    )
   }
 }
