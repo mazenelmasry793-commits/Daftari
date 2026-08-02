@@ -4,11 +4,13 @@ import 'dart:io';
 import 'package:debt_tracker/core/platform/ios_navigation_channel.dart';
 import 'package:debt_tracker/core/platform/native_dashboard_channel.dart';
 import 'package:debt_tracker/core/platform/native_entry_details_channel.dart';
+import 'package:debt_tracker/core/platform/native_note_details_channel.dart';
 import 'package:debt_tracker/core/platform/app_toast_service.dart';
 import 'package:debt_tracker/core/widgets/confirm_dialog.dart';
 import 'package:debt_tracker/core/platform/native_sheets_channel.dart';
 import 'package:debt_tracker/core/utils/formatters.dart';
 import 'package:debt_tracker/data/models/entry.dart';
+import 'package:debt_tracker/domain/repositories/entry_repository.dart';
 import 'package:debt_tracker/features/dashboard/dashboard_screen.dart';
 import 'package:debt_tracker/features/entry_details/entry_details_screen.dart';
 import 'package:debt_tracker/features/entry_form/entry_form_screen.dart';
@@ -17,11 +19,13 @@ import 'package:debt_tracker/features/owed_to_me/owed_to_me_screen.dart';
 import 'package:debt_tracker/features/scratchpad/scratchpad_screen.dart';
 import 'package:debt_tracker/features/search/search_screen.dart';
 import 'package:debt_tracker/features/settings/settings_screen.dart';
+import 'package:debt_tracker/features/trash/trash_screen.dart';
 import 'package:debt_tracker/presentation/widgets/app_page_route.dart';
 import 'package:debt_tracker/presentation/providers/app_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:isar_community/isar.dart';
+import 'package:intl/intl.dart';
 
 class AppShell extends ConsumerStatefulWidget {
   const AppShell({super.key});
@@ -50,6 +54,21 @@ class _AppShellState extends ConsumerState<AppShell> {
     iosNavigationChannel.onTabSelected = _selectTab;
     iosNavigationChannel.onAddRequested = _openAddFromNative;
     iosNavigationChannel.onSettingsRequested = _openSettings;
+    iosNavigationChannel.onSettingsExportRequested = _nativeSettingsExport;
+    iosNavigationChannel.onSettingsImportPreviewRequested =
+        _nativeSettingsImportPreview;
+    iosNavigationChannel.onSettingsImportRequested = _nativeSettingsImport;
+    iosNavigationChannel.onSettingsEmptyTrashRequested =
+        _nativeSettingsEmptyTrash;
+    iosNavigationChannel.onSettingsDeleteAllDataRequested =
+        _nativeSettingsDeleteAllData;
+    iosNavigationChannel.onSettingsOpenTrashRequested =
+        _nativeSettingsOpenTrash;
+    iosNavigationChannel.onTrashLoadRequested = _nativeTrashSnapshot;
+    iosNavigationChannel.onTrashRestoreRequested = _nativeTrashRestore;
+    iosNavigationChannel.onTrashDeleteForeverRequested =
+        _nativeTrashDeleteForever;
+    iosNavigationChannel.onTrashEmptyRequested = _nativeTrashEmpty;
     iosNavigationChannel.onSearchQueryChanged = _onNativeSearchQueryChanged;
     iosNavigationChannel.onSearchActivated = _enterSearchFromNative;
     iosNavigationChannel.onSearchDismissed = _dismissSearch;
@@ -57,6 +76,8 @@ class _AppShellState extends ConsumerState<AppShell> {
     nativeEntryDetailsChannel.onLoadEntry = _loadNativeEntryDetails;
     nativeEntryDetailsChannel.onPerformAction =
         _performNativeEntryDetailsAction;
+    nativeNoteDetailsChannel.onLoadNote = _loadNativeNoteDetails;
+    nativeNoteDetailsChannel.onPerformAction = _performNativeNoteDetailsAction;
     nativeSheetsChannel.onAddEntryTypeSelected = _handleNativeEntryType;
     nativeSheetsChannel.onNativeEntryFormSubmitted = _saveNativeEntry;
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -73,12 +94,24 @@ class _AppShellState extends ConsumerState<AppShell> {
     iosNavigationChannel.onTabSelected = null;
     iosNavigationChannel.onAddRequested = null;
     iosNavigationChannel.onSettingsRequested = null;
+    iosNavigationChannel.onSettingsExportRequested = null;
+    iosNavigationChannel.onSettingsImportPreviewRequested = null;
+    iosNavigationChannel.onSettingsImportRequested = null;
+    iosNavigationChannel.onSettingsEmptyTrashRequested = null;
+    iosNavigationChannel.onSettingsDeleteAllDataRequested = null;
+    iosNavigationChannel.onSettingsOpenTrashRequested = null;
+    iosNavigationChannel.onTrashLoadRequested = null;
+    iosNavigationChannel.onTrashRestoreRequested = null;
+    iosNavigationChannel.onTrashDeleteForeverRequested = null;
+    iosNavigationChannel.onTrashEmptyRequested = null;
     iosNavigationChannel.onSearchQueryChanged = null;
     iosNavigationChannel.onSearchActivated = null;
     iosNavigationChannel.onSearchDismissed = null;
     nativeDashboardChannel.onOpenEntryDetails = null;
     nativeEntryDetailsChannel.onLoadEntry = null;
     nativeEntryDetailsChannel.onPerformAction = null;
+    nativeNoteDetailsChannel.onLoadNote = null;
+    nativeNoteDetailsChannel.onPerformAction = null;
     nativeSheetsChannel.onAddEntryTypeSelected = null;
     nativeSheetsChannel.onNativeEntryFormSubmitted = null;
     unawaited(iosNavigationChannel.setNavigationVisible(false));
@@ -122,6 +155,7 @@ class _AppShellState extends ConsumerState<AppShell> {
       _searchActive = true;
       _searchQuery = '';
     });
+    unawaited(_updateNativeSearchResults(''));
     unawaited(iosNavigationChannel.setSearchVisible(true));
   }
 
@@ -132,11 +166,14 @@ class _AppShellState extends ConsumerState<AppShell> {
       _searchActive = true;
       _searchQuery = '';
     });
+    unawaited(_updateNativeSearchResults(''));
   }
 
   void _onNativeSearchQueryChanged(String query) {
     if (!_searchActive) return;
-    setState(() => _searchQuery = query.trim());
+    final trimmed = query.trim();
+    setState(() => _searchQuery = trimmed);
+    unawaited(_updateNativeSearchResults(trimmed));
   }
 
   void _dismissSearch({int? nextIndex}) {
@@ -149,12 +186,198 @@ class _AppShellState extends ConsumerState<AppShell> {
     });
     unawaited(iosNavigationChannel.setSearchVisible(false));
     unawaited(iosNavigationChannel.setSelectedTab(restoredIndex));
+    unawaited(_updateNativeSearchResults(''));
+  }
+
+  Future<void> _updateNativeSearchResults(String query) async {
+    if (!Platform.isIOS) return;
+    final results = query.isEmpty
+        ? <Entry>[]
+        : await ref.read(entryRepositoryProvider).search(query);
+    if (!mounted || !_searchActive || _searchQuery != query) return;
+    await iosNavigationChannel.updateNativeSearchResults({
+      'query': query,
+      'results': [
+        for (final entry in results)
+          {
+            'id': entry.id.toString(),
+            'title': entry.title,
+            'type': switch (entry.type) {
+              EntryType.owedToMe => 'owedToMe',
+              EntryType.owedByMe => 'owedByMe',
+              EntryType.scratchpad => 'scratchpad',
+            },
+            'dateText': AppFormatters.date.format(
+              entry.debtDate ?? entry.createdAt,
+            ),
+            if (entry.type.isDebt)
+              'amountText': AppFormatters.moneyValue(entry.amount ?? 0),
+            'previewText': entry.note?.trim() ?? '',
+          },
+      ],
+    });
   }
 
   Future<void> _openSettings() async {
     await Navigator.of(
       context,
     ).push(AppPageRoute(child: const SettingsScreen()));
+  }
+
+  Future<Map<String, dynamic>> _nativeSettingsExport() async {
+    try {
+      final json = await ref.read(entryRepositoryProvider).exportJson();
+      final stamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
+      return <String, dynamic>{
+        'json': json,
+        'fileName': 'daftari_backup_$stamp.json',
+      };
+    } catch (_) {
+      await appToastService.show('Export failed', type: AppToastType.error);
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> _nativeSettingsImportPreview(
+    String contents,
+  ) async {
+    try {
+      final preview = await ref
+          .read(entryRepositoryProvider)
+          .previewImport(contents);
+      return <String, dynamic>{
+        'newEntries': preview.newEntries,
+        'conflictingEntries': preview.conflictingEntries,
+      };
+    } catch (_) {
+      await appToastService.show('Import failed', type: AppToastType.error);
+      rethrow;
+    }
+  }
+
+  Future<void> _nativeSettingsImport(String contents, String strategy) async {
+    try {
+      final importStrategy = strategy == 'replaceExisting'
+          ? ImportStrategy.replaceExisting
+          : ImportStrategy.skipExisting;
+      await ref
+          .read(entryRepositoryProvider)
+          .importJson(contents, strategy: importStrategy);
+      await appToastService.show(
+        'Import completed',
+        type: AppToastType.success,
+      );
+    } catch (_) {
+      await appToastService.show('Import failed', type: AppToastType.error);
+      rethrow;
+    }
+  }
+
+  Future<void> _nativeSettingsEmptyTrash() async {
+    try {
+      await ref.read(entryRepositoryProvider).emptyTrash();
+      await appToastService.show('Trash emptied', type: AppToastType.success);
+    } catch (_) {
+      await appToastService.show(
+        'Something went wrong',
+        type: AppToastType.error,
+      );
+      rethrow;
+    }
+  }
+
+  Future<void> _nativeSettingsDeleteAllData() async {
+    try {
+      await ref.read(entryRepositoryProvider).deleteAllData();
+      await appToastService.show('Data cleared', type: AppToastType.success);
+    } catch (_) {
+      await appToastService.show(
+        'Something went wrong',
+        type: AppToastType.error,
+      );
+      rethrow;
+    }
+  }
+
+  Future<void> _nativeSettingsOpenTrash() async {
+    await Navigator.of(context).push(AppPageRoute(child: const TrashScreen()));
+    if (mounted) unawaited(iosNavigationChannel.restoreNativeSettings());
+  }
+
+  Future<Map<String, dynamic>> _nativeTrashSnapshot() async {
+    final entries = await ref.read(entryRepositoryProvider).watchTrash().first;
+    return _nativeTrashResponse(entries);
+  }
+
+  Future<Map<String, dynamic>> _nativeTrashRestore(String id) async {
+    try {
+      final repository = ref.read(entryRepositoryProvider);
+      await repository.restore(int.parse(id));
+      await appToastService.show('Entry restored', type: AppToastType.success);
+      return _nativeTrashResponse(await repository.watchTrash().first);
+    } catch (_) {
+      await appToastService.show(
+        'Something went wrong',
+        type: AppToastType.error,
+      );
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> _nativeTrashDeleteForever(String id) async {
+    try {
+      final repository = ref.read(entryRepositoryProvider);
+      await repository.permanentlyDelete(int.parse(id));
+      await appToastService.show(
+        'Deleted permanently',
+        type: AppToastType.success,
+      );
+      return _nativeTrashResponse(await repository.watchTrash().first);
+    } catch (_) {
+      await appToastService.show(
+        'Something went wrong',
+        type: AppToastType.error,
+      );
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> _nativeTrashEmpty() async {
+    try {
+      final repository = ref.read(entryRepositoryProvider);
+      await repository.emptyTrash();
+      await appToastService.show('Trash emptied', type: AppToastType.success);
+      return _nativeTrashResponse(await repository.watchTrash().first);
+    } catch (_) {
+      await appToastService.show(
+        'Something went wrong',
+        type: AppToastType.error,
+      );
+      rethrow;
+    }
+  }
+
+  Map<String, dynamic> _nativeTrashResponse(List<Entry> entries) {
+    return {
+      'schemaVersion': 1,
+      'entries': [
+        for (final entry in entries)
+          {
+            'id': entry.id.toString(),
+            'title': entry.title,
+            'type': switch (entry.type) {
+              EntryType.owedToMe => 'owedToMe',
+              EntryType.owedByMe => 'owedByMe',
+              EntryType.scratchpad => 'scratchpad',
+            },
+            'dateText': AppFormatters.date.format(
+              entry.debtDate ?? entry.createdAt,
+            ),
+            if (entry.type.isDebt)
+              'amountText': AppFormatters.moneyValue(entry.amount ?? 0),
+          },
+      ],
+    };
   }
 
   Future<void> _openNativeEntryDetails(String id) async {
@@ -184,6 +407,83 @@ class _AppShellState extends ConsumerState<AppShell> {
         .read(entryRepositoryProvider)
         .getById(int.parse(id));
     return _nativeEntryDetailsResponse(entry);
+  }
+
+  Future<Map<String, dynamic>> _loadNativeNoteDetails(String id) async {
+    final entry = await ref
+        .read(entryRepositoryProvider)
+        .getById(int.parse(id));
+    return _nativeNoteDetailsResponse(entry);
+  }
+
+  Future<Map<String, dynamic>> _performNativeNoteDetailsAction(
+    String id,
+    String action,
+    Map<String, dynamic>? payload,
+  ) async {
+    final repository = ref.read(entryRepositoryProvider);
+    final entry = await repository.getById(int.parse(id));
+    if (entry == null) return _nativeNoteDetailsResponse(null, close: true);
+
+    try {
+      if (action == 'save') {
+        final title = (payload?['title'] as String? ?? '').trim();
+        final note = (payload?['note'] as String? ?? '').trim();
+        final date = DateTime.tryParse(
+          payload?['dateIso8601'] as String? ?? '',
+        );
+        if (title.isEmpty || date == null) {
+          await appToastService.show(
+            'Enter a title and valid date',
+            type: AppToastType.error,
+          );
+          return _nativeNoteDetailsResponse(entry, actionSucceeded: false);
+        }
+        entry
+          ..title = title
+          ..note = note.isEmpty ? null : note
+          ..debtDate = date
+          ..updatedAt = DateTime.now();
+        await repository.save(entry);
+        await appToastService.show('Note updated', type: AppToastType.success);
+      } else if (action == 'delete') {
+        await repository.softDelete(entry.id);
+        await appToastService.show(
+          'Moved to trash',
+          type: AppToastType.success,
+        );
+        return _nativeNoteDetailsResponse(
+          await repository.getById(entry.id),
+          close: true,
+        );
+      }
+      return _nativeNoteDetailsResponse(
+        await repository.getById(entry.id),
+        actionSucceeded: true,
+      );
+    } catch (_) {
+      await appToastService.show(
+        'Unable to update note',
+        type: AppToastType.error,
+      );
+      return _nativeNoteDetailsResponse(entry, actionSucceeded: false);
+    }
+  }
+
+  Map<String, dynamic> _nativeNoteDetailsResponse(
+    Entry? entry, {
+    bool close = false,
+    bool? actionSucceeded,
+  }) {
+    if (entry == null) {
+      return {'schemaVersion': 1, 'close': close, 'note': null};
+    }
+    return {
+      'schemaVersion': 1,
+      'close': close,
+      if (actionSucceeded != null) 'actionSucceeded': actionSucceeded,
+      'note': nativeNoteDetailsEntryPayload(entry),
+    };
   }
 
   Future<Map<String, dynamic>> _performNativeEntryDetailsAction(
@@ -320,6 +620,8 @@ class _AppShellState extends ConsumerState<AppShell> {
   }) {
     if (entry == null)
       return {'schemaVersion': 1, 'close': close, 'entry': null};
+    final entryDate = entry.debtDate ?? entry.createdAt;
+    final dateText = AppFormatters.date.format(entryDate);
     final original = entry.amount ?? 0.0;
     final paid = entry.paidAmount;
     final remaining = entry.remainingAmount;
@@ -337,12 +639,8 @@ class _AppShellState extends ConsumerState<AppShell> {
             : entry.status == EntryStatus.completed
             ? 'completed'
             : 'active',
-        'dateText': AppFormatters.date.format(
-          entry.debtDate ?? entry.createdAt,
-        ),
-        'dateIso8601': (entry.debtDate ?? entry.createdAt)
-            .toUtc()
-            .toIso8601String(),
+        'dateText': dateText,
+        'dateIso8601': entryDate.toUtc().toIso8601String(),
         'note': entry.note ?? '',
         'originalAmount': original,
         'paidAmount': paid,

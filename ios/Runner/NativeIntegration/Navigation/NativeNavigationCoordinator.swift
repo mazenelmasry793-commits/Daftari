@@ -14,12 +14,20 @@ final class NativeNavigationCoordinator {
   private var nativeEntryHosts: [NativeEntryListType: UIViewController] = [:]
   private var nativeEntryDetailsBridge: NativeEntryDetailsBridge?
   private var nativeEntryDetailsHost: UIViewController?
+  private var nativeNoteDetailsBridge: NativeNoteDetailsBridge?
+  private var nativeNoteDetailsHost: UIViewController?
+  private var nativeSettingsHost: UIViewController?
+  private var nativeTrashHost: UIViewController?
   private var settingsButton: NativeSettingsButtonView?
   private var selectedTabIndex = 0
   private var searchModeActive = false
   private var navigationVisible = true
   private var flutterDetailVisible = false
   private var nativeDetailVisible = false
+  private var nativeNoteDetailVisible = false
+  private var nativeSettingsVisible = false
+  private var nativeTrashVisible = false
+  private var trashActionInFlight = false
   private var nativeDashboardInstalled = false
   // Keeps the native control clear of the screen edge while preserving its
   // safe-area-aligned header position.
@@ -54,13 +62,13 @@ final class NativeNavigationCoordinator {
         onAddEntryTypeSelected: { [weak self] type in
           _ = self?.sheetCoordinator.presentNativeEntryForm(type: type)
         },
-        onSettingsRequested: { [weak channel] in
-          channel?.invokeMethod(NativeChannelConstants.NavigationMethod.openSettings, arguments: nil)
+        onSettingsRequested: { [weak self] in
+          self?.openNativeSettings()
         },
         onEntrySelected: { [weak self] id, type in
           guard let self else { return }
           if type == NativeEntryListType.scratchpad.rawValue {
-            (self.dashboardBridge as? NativeDashboardBridge)?.openEntryDetails(id: id)
+            self.openNativeNoteDetails(id: id)
           } else {
             self.openNativeDetails(id: id)
           }
@@ -88,13 +96,13 @@ final class NativeNavigationCoordinator {
           onAdd: { [weak self] in
             _ = self?.sheetCoordinator.presentNativeEntryForm(type: type.rawValue)
           },
-          onSettings: { [weak channel] in
-            channel?.invokeMethod(NativeChannelConstants.NavigationMethod.openSettings, arguments: nil)
+          onSettings: { [weak self] in
+            self?.openNativeSettings()
           },
           onEntrySelected: { [weak self] id in
             guard let self else { return }
             if type == .scratchpad {
-              entriesBridge.openEntryDetails(id: id)
+              self.openNativeNoteDetails(id: id)
             } else {
               self.openNativeDetails(id: id)
             }
@@ -163,6 +171,15 @@ final class NativeNavigationCoordinator {
         onSearchModeChanged: { [weak self] active in
           self?.searchModeActive = active
           self?.updateNativeSurfaceVisibility(animated: true)
+        },
+        onSearchResultSelected: { [weak self] id, type in
+          guard let self else { return }
+          self.searchModeActive = false
+          if type == "scratchpad" {
+            self.openNativeNoteDetails(id: id)
+          } else {
+            self.openNativeDetails(id: id)
+          }
         }
       )
       rootViewController.addChild(systemTabs.viewController)
@@ -220,6 +237,78 @@ final class NativeNavigationCoordinator {
       entryDetailsHost.view.isHidden = true
       self.nativeEntryDetailsBridge = entryDetailsBridge
       self.nativeEntryDetailsHost = entryDetailsHost
+
+      let noteDetailsBridge = NativeNoteDetailsBridge(
+        binaryMessenger: rootViewController.binaryMessenger
+      )
+      let noteDetailsHost = NativeNoteDetailsHostController(
+        bridge: noteDetailsBridge,
+        onBack: { [weak self] in self?.closeNativeNoteDetails() }
+      )
+      rootViewController.addChild(noteDetailsHost)
+      rootViewController.view.addSubview(noteDetailsHost.view)
+      noteDetailsHost.view.translatesAutoresizingMaskIntoConstraints = false
+      NSLayoutConstraint.activate([
+        noteDetailsHost.view.leadingAnchor.constraint(equalTo: rootViewController.view.leadingAnchor),
+        noteDetailsHost.view.trailingAnchor.constraint(equalTo: rootViewController.view.trailingAnchor),
+        noteDetailsHost.view.topAnchor.constraint(equalTo: rootViewController.view.topAnchor),
+        noteDetailsHost.view.bottomAnchor.constraint(equalTo: rootViewController.view.bottomAnchor),
+      ])
+      noteDetailsHost.didMove(toParent: rootViewController)
+      noteDetailsHost.view.isHidden = true
+      self.nativeNoteDetailsBridge = noteDetailsBridge
+      self.nativeNoteDetailsHost = noteDetailsHost
+
+      let settingsHost = NativeSettingsHostController(
+        onBack: { [weak self] in self?.closeNativeSettings() },
+        onTrash: { [weak self] in self?.openNativeTrash() },
+        onExport: { [weak self] in self?.requestSettingsExport() },
+        onImportData: { [weak self] contents in self?.requestSettingsImportPreview(contents: contents) },
+        onEmptyTrash: { [weak self] in self?.requestSettingsMutation(method: "nativeSettingsEmptyTrash") },
+        onDeleteAllData: { [weak self] in self?.requestSettingsMutation(method: "nativeSettingsDeleteAllData") }
+      )
+      rootViewController.addChild(settingsHost)
+      rootViewController.view.addSubview(settingsHost.view)
+      settingsHost.view.translatesAutoresizingMaskIntoConstraints = false
+      NSLayoutConstraint.activate([
+        settingsHost.view.leadingAnchor.constraint(equalTo: rootViewController.view.leadingAnchor),
+        settingsHost.view.trailingAnchor.constraint(equalTo: rootViewController.view.trailingAnchor),
+        settingsHost.view.topAnchor.constraint(equalTo: rootViewController.view.topAnchor),
+        settingsHost.view.bottomAnchor.constraint(equalTo: rootViewController.view.bottomAnchor),
+      ])
+      settingsHost.didMove(toParent: rootViewController)
+      settingsHost.view.isHidden = true
+      self.nativeSettingsHost = settingsHost
+
+      let trashHost = NativeTrashHostController(
+        onBack: { [weak self] in self?.closeNativeTrash() },
+        onEntrySelected: { [weak self] id in
+          guard let self else { return }
+          self.nativeTrashVisible = false
+          self.openNativeDetails(id: id)
+        },
+        onRestore: { [weak self] id in
+          self?.requestTrashAction(method: "nativeTrashRestore", id: id)
+        },
+        onDeleteForeverConfirmed: { [weak self] id in
+          self?.requestTrashAction(method: "nativeTrashDeleteForever", id: id)
+        },
+        onEmptyTrashConfirmed: { [weak self] in
+          self?.requestTrashAction(method: "nativeTrashEmpty", id: nil)
+        }
+      )
+      rootViewController.addChild(trashHost)
+      rootViewController.view.addSubview(trashHost.view)
+      trashHost.view.translatesAutoresizingMaskIntoConstraints = false
+      NSLayoutConstraint.activate([
+        trashHost.view.leadingAnchor.constraint(equalTo: rootViewController.view.leadingAnchor),
+        trashHost.view.trailingAnchor.constraint(equalTo: rootViewController.view.trailingAnchor),
+        trashHost.view.topAnchor.constraint(equalTo: rootViewController.view.topAnchor),
+        trashHost.view.bottomAnchor.constraint(equalTo: rootViewController.view.bottomAnchor),
+      ])
+      trashHost.didMove(toParent: rootViewController)
+      trashHost.view.isHidden = true
+      self.nativeTrashHost = trashHost
       updateNativeSurfaceVisibility(animated: false)
     } else {
       rootViewController.view.addSubview(navigationView)
@@ -287,6 +376,22 @@ final class NativeNavigationCoordinator {
         self?.flutterDetailVisible = visible
         self?.updateNativeSurfaceVisibility(animated: false)
         result(nil)
+      case "nativeSettingsRestored":
+        if #available(iOS 26.0, *) { self?.restoreNativeSettings() }
+        result(nil)
+      case "restoreNativeSettings":
+        if #available(iOS 26.0, *) { self?.restoreNativeSettings() }
+        result(nil)
+      case "nativeTrashSnapshotUpdated":
+        if #available(iOS 26.0, *) {
+          (self?.nativeTrashHost as? NativeTrashHostController)?.apply(payload: call.arguments)
+        }
+        result(nil)
+      case "nativeSearchResultsUpdated":
+        if #available(iOS 26.0, *) {
+          (self?.systemTabBarController as? DaftariSystemTabBarController)?.applySearchResults(payload: call.arguments)
+        }
+        result(nil)
       default:
         result(FlutterMethodNotImplemented)
       }
@@ -319,7 +424,10 @@ final class NativeNavigationCoordinator {
         homeSelected &&
         !searchModeActive &&
         !flutterDetailVisible &&
-        !nativeDetailVisible
+        !nativeDetailVisible &&
+        !nativeNoteDetailVisible &&
+        !nativeSettingsVisible &&
+        !nativeTrashVisible
       let shouldShowLegacyHeader =
         false
 
@@ -337,10 +445,16 @@ final class NativeNavigationCoordinator {
           selectedTabIndex == tabIndex &&
           !searchModeActive &&
           !flutterDetailVisible &&
-          !nativeDetailVisible
+          !nativeDetailVisible &&
+          !nativeNoteDetailVisible &&
+          !nativeSettingsVisible &&
+          !nativeTrashVisible
         )
       }
       nativeEntryDetailsHost?.view.isHidden = !nativeDetailVisible
+      nativeNoteDetailsHost?.view.isHidden = !nativeNoteDetailVisible
+      nativeSettingsHost?.view.isHidden = !nativeSettingsVisible
+      nativeTrashHost?.view.isHidden = !nativeTrashVisible
       (navigationBarHost as? DaftariNavigationBarHostViewController)?.setVisible(
         shouldShowLegacyHeader,
         animated: animated
@@ -381,11 +495,191 @@ final class NativeNavigationCoordinator {
   }
 
   @available(iOS 26.0, *)
+  private func openNativeNoteDetails(id: String) {
+    guard !nativeDetailVisible, !nativeNoteDetailVisible, !flutterDetailVisible,
+          let detailsHost = nativeNoteDetailsHost,
+          let detailsBridge = nativeNoteDetailsBridge else { return }
+    nativeNoteDetailVisible = true
+    navigationVisible = false
+    (systemTabBarController as? DaftariSystemTabBarController)?.setNavigationVisible(false, animated: true)
+    detailsHost.view.isHidden = false
+    rootViewController.view.bringSubviewToFront(detailsHost.view)
+    detailsBridge.load(id: id)
+    updateNativeSurfaceVisibility(animated: true)
+  }
+
+  @available(iOS 26.0, *)
+  private func openNativeSettings() {
+    guard !nativeSettingsVisible, !nativeDetailVisible, !nativeNoteDetailVisible,
+          !flutterDetailVisible, let settingsHost = nativeSettingsHost else { return }
+    nativeSettingsVisible = true
+    navigationVisible = false
+    (systemTabBarController as? DaftariSystemTabBarController)?.setNavigationVisible(false, animated: true)
+    settingsHost.view.isHidden = false
+    rootViewController.view.bringSubviewToFront(settingsHost.view)
+    updateNativeSurfaceVisibility(animated: true)
+  }
+
+  @available(iOS 26.0, *)
+  private func closeNativeSettings() {
+    guard nativeSettingsVisible else { return }
+    nativeSettingsVisible = false
+    navigationVisible = true
+    nativeSettingsHost?.view.isHidden = true
+    (systemTabBarController as? DaftariSystemTabBarController)?.setNavigationVisible(true, animated: true)
+    updateNativeSurfaceVisibility(animated: true)
+  }
+
+  @available(iOS 26.0, *)
+  private func restoreNativeSettings() {
+    guard !nativeDetailVisible, !nativeNoteDetailVisible, !flutterDetailVisible,
+          let settingsHost = nativeSettingsHost else { return }
+    nativeSettingsVisible = true
+    navigationVisible = false
+    (systemTabBarController as? DaftariSystemTabBarController)?.setNavigationVisible(false, animated: true)
+    settingsHost.view.isHidden = false
+    rootViewController.view.bringSubviewToFront(settingsHost.view)
+    updateNativeSurfaceVisibility(animated: true)
+  }
+
+  @available(iOS 26.0, *)
+  private func openNativeTrash() {
+    guard nativeSettingsVisible, !nativeTrashVisible,
+          let trashHost = nativeTrashHost else { return }
+    nativeSettingsVisible = false
+    nativeTrashVisible = true
+    trashHost.view.isHidden = false
+    rootViewController.view.bringSubviewToFront(trashHost.view)
+    updateNativeSurfaceVisibility(animated: true)
+    channel?.invokeMethod("nativeTrashLoad", arguments: nil) { [weak self] response in
+      guard let self else { return }
+      if let payload = response as? [String: Any] {
+        (self.nativeTrashHost as? NativeTrashHostController)?.apply(payload: payload)
+      } else if response is FlutterError {
+        (self.nativeTrashHost as? NativeTrashHostController)?.presentError(message: "Unable to load Trash")
+      }
+    }
+  }
+
+  @available(iOS 26.0, *)
+  private func closeNativeTrash() {
+    guard nativeTrashVisible else { return }
+    nativeTrashVisible = false
+    nativeTrashHost?.view.isHidden = true
+    restoreNativeSettings()
+  }
+
+  @available(iOS 26.0, *)
+  private func requestTrashAction(method: String, id: String?) {
+    guard !trashActionInFlight else { return }
+    trashActionInFlight = true
+    (nativeTrashHost as? NativeTrashHostController)?.setActionInFlight(true)
+    let arguments = id.map { ["id": $0] }
+    channel?.invokeMethod(method, arguments: arguments) { [weak self] response in
+      guard let self else { return }
+      self.trashActionInFlight = false
+      (self.nativeTrashHost as? NativeTrashHostController)?.setActionInFlight(false)
+      if let payload = response as? [String: Any] {
+        (self.nativeTrashHost as? NativeTrashHostController)?.apply(payload: payload)
+      } else if let error = response as? FlutterError {
+        (self.nativeTrashHost as? NativeTrashHostController)?.presentError(message: error.message ?? "Operation failed")
+      }
+    }
+  }
+
+  @available(iOS 26.0, *)
+  private func openFlutterTrash() {
+    guard nativeSettingsVisible else { return }
+    nativeSettingsVisible = false
+    nativeSettingsHost?.view.isHidden = true
+    channel?.invokeMethod("nativeSettingsOpenTrash", arguments: nil)
+  }
+
+  @available(iOS 26.0, *)
+  private func requestSettingsExport() {
+    channel?.invokeMethod("nativeSettingsExport", arguments: nil) { [weak self] response in
+      guard let self, let payload = response as? [String: Any],
+            let json = payload["json"] as? String else {
+        if let self { NativeSettingsBridge.presentError(on: self.rootViewController, message: "Export failed") }
+        return
+      }
+      let name = payload["fileName"] as? String ?? "daftari_backup.json"
+      let url = FileManager.default.temporaryDirectory.appendingPathComponent(name)
+      do {
+        try json.data(using: .utf8)?.write(to: url, options: .atomic)
+        (self.nativeSettingsHost as? NativeSettingsHostController)?.presentExport(url: url)
+      } catch {
+        NativeSettingsBridge.presentError(on: self.rootViewController, message: "Export failed")
+      }
+    }
+  }
+
+  @available(iOS 26.0, *)
+  private func requestSettingsImportPreview(contents: String) {
+    channel?.invokeMethod("nativeSettingsImportPreview", arguments: ["contents": contents]) { [weak self] response in
+      guard let self else { return }
+      guard let payload = response as? [String: Any],
+            let conflicts = payload["conflictingEntries"] as? Int else {
+        NativeSettingsBridge.presentError(on: self.rootViewController, message: "Import failed")
+        return
+      }
+      if conflicts == 0 {
+        self.performSettingsImport(contents: contents, strategy: "skipExisting")
+        return
+      }
+      let alert = UIAlertController(
+        title: "Import Conflicts",
+        message: "This backup contains \(conflicts) entries already on this device.",
+        preferredStyle: .alert
+      )
+      alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+      alert.addAction(UIAlertAction(title: "Skip Existing", style: .default) { [weak self] _ in
+        self?.performSettingsImport(contents: contents, strategy: "skipExisting")
+      })
+      alert.addAction(UIAlertAction(title: "Replace Existing", style: .default) { [weak self] _ in
+        self?.performSettingsImport(contents: contents, strategy: "replaceExisting")
+      })
+      (self.nativeSettingsHost ?? self.rootViewController).present(alert, animated: true)
+    }
+  }
+
+  @available(iOS 26.0, *)
+  private func performSettingsImport(contents: String, strategy: String) {
+    channel?.invokeMethod("nativeSettingsImport", arguments: [
+      "contents": contents,
+      "strategy": strategy,
+    ]) { [weak self] response in
+      if let error = response as? FlutterError, let self {
+        NativeSettingsBridge.presentError(on: self.rootViewController, message: error.message ?? "Import failed")
+      }
+    }
+  }
+
+  @available(iOS 26.0, *)
+  private func requestSettingsMutation(method: String) {
+    channel?.invokeMethod(method, arguments: nil) { [weak self] response in
+      if let error = response as? FlutterError, let self {
+        NativeSettingsBridge.presentError(on: self.rootViewController, message: error.message ?? "Operation failed")
+      }
+    }
+  }
+
+  @available(iOS 26.0, *)
   private func closeNativeDetails() {
     guard nativeDetailVisible else { return }
     nativeDetailVisible = false
     navigationVisible = true
     nativeEntryDetailsHost?.view.isHidden = true
+    (systemTabBarController as? DaftariSystemTabBarController)?.setNavigationVisible(true, animated: true)
+    updateNativeSurfaceVisibility(animated: true)
+  }
+
+  @available(iOS 26.0, *)
+  private func closeNativeNoteDetails() {
+    guard nativeNoteDetailVisible else { return }
+    nativeNoteDetailVisible = false
+    navigationVisible = true
+    nativeNoteDetailsHost?.view.isHidden = true
     (systemTabBarController as? DaftariSystemTabBarController)?.setNavigationVisible(true, animated: true)
     updateNativeSurfaceVisibility(animated: true)
   }

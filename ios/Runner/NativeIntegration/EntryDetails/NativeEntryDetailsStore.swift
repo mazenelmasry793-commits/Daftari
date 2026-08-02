@@ -18,7 +18,6 @@ final class NativeEntryDetailsStore: ObservableObject {
           let title = rawEntry["title"] as? String,
           let type = rawEntry["type"] as? String,
           let status = rawEntry["status"] as? String,
-          let fallbackDateText = rawEntry["dateText"] as? String,
           let originalText = rawEntry["originalText"] as? String,
           let paidText = rawEntry["paidText"] as? String,
           let remainingText = rawEntry["remainingText"] as? String,
@@ -28,11 +27,9 @@ final class NativeEntryDetailsStore: ObservableObject {
       return
     }
 
-    let dateText = formattedDate(
-      iso8601: rawEntry["dateIso8601"] as? String,
-      fallback: fallbackDateText
-    )
+    let fallbackDateText = rawEntry["dateText"] as? String ?? ""
     let date = parseDate(rawEntry["dateIso8601"] as? String)
+    let dateText = formattedDate(date: date, fallback: fallbackDateText)
     let originalAmount = (rawEntry["originalAmount"] as? NSNumber)?.doubleValue
     let paidAmount = (rawEntry["paidAmount"] as? NSNumber)?.doubleValue ?? 0
     let progress = min(max((rawEntry["progress"] as? NSNumber)?.doubleValue ?? 0, 0), 1)
@@ -68,10 +65,9 @@ final class NativeEntryDetailsStore: ObservableObject {
     errorMessage = nil
   }
 
-  private func formattedDate(iso8601: String?, fallback: String) -> String {
-    guard let iso8601,
-          let date = ISO8601DateFormatter().date(from: iso8601) else {
-      return fallback
+  private func formattedDate(date: Date?, fallback: String) -> String {
+    guard let date else {
+      return fallback.trimmingCharacters(in: .whitespacesAndNewlines)
     }
     let formatter = DateFormatter()
     formatter.dateStyle = .medium
@@ -81,9 +77,11 @@ final class NativeEntryDetailsStore: ObservableObject {
   }
 
   private func parseDate(_ value: String?) -> Date? {
-    guard let value else { return nil }
+    guard let value, !value.isEmpty else { return nil }
     let formatter = ISO8601DateFormatter()
     formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-    return formatter.date(from: value) ?? ISO8601DateFormatter().date(from: value)
+    if let date = formatter.date(from: value) { return date }
+    formatter.formatOptions = [.withInternetDateTime]
+    return formatter.date(from: value)
   }
 }

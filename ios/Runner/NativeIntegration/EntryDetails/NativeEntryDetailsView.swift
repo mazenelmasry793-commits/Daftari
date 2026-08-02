@@ -55,9 +55,14 @@ struct NativeEntryDetailsView: View {
               Text(snapshot.title)
                 .font(.headline)
                 .lineLimit(1)
-              Label(snapshot.dateText, systemImage: "calendar")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+              HStack(spacing: 5) {
+                Image(systemName: "calendar")
+                Text(snapshot.dateText)
+              }
+              .font(.caption)
+              .foregroundStyle(.secondary)
+              .accessibilityElement(children: .combine)
+              .accessibilityLabel(snapshot.dateText)
             }
           }
         }
@@ -133,12 +138,12 @@ struct NativeEntryDetailsView: View {
   @ViewBuilder
   private func detailsContent(_ snapshot: NativeEntryDetailsSnapshot) -> some View {
     ScrollView {
-      VStack(alignment: .leading, spacing: 20) {
+      VStack(alignment: .leading, spacing: 14) {
         NativeEntryDetailsBalanceCard(snapshot: snapshot)
 
         HStack(alignment: .firstTextBaseline) {
           Text("Payments")
-            .font(.title2.weight(.bold))
+            .font(.title3.weight(.bold))
           Spacer()
           if !snapshot.isDeleted {
             Button {
@@ -148,6 +153,7 @@ struct NativeEntryDetailsView: View {
             }
             .buttonStyle(.borderedProminent)
             .tint(.indigo)
+            .controlSize(.small)
           }
         }
 
@@ -165,15 +171,9 @@ struct NativeEntryDetailsView: View {
           )
         }
 
-        Button {
-          if !snapshot.isDeleted { onEdit(snapshot) }
-        } label: {
-          NativeEntryDetailsNoteCard(note: snapshot.note, isEnabled: !snapshot.isDeleted)
-        }
-        .buttonStyle(.plain)
-        .disabled(snapshot.isDeleted)
+        NativeEntryDetailsNoteCard(note: snapshot.note)
       }
-      .padding(.horizontal, 16)
+      .padding(.horizontal, 18)
       .padding(.top, 8)
       .padding(.bottom, 32)
     }
@@ -189,6 +189,12 @@ private struct NativeEntryDetailsPaymentSheet: View {
   @State private var amountText = ""
   @State private var paymentDate = Date()
   @State private var note = ""
+  @FocusState private var focusedField: Field?
+
+  private enum Field {
+    case amount
+    case note
+  }
 
   private var amount: Double? {
     Double(amountText.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: ",", with: "."))
@@ -196,15 +202,32 @@ private struct NativeEntryDetailsPaymentSheet: View {
 
   var body: some View {
     NavigationStack {
-      Form {
-        Section {
+      ScrollView {
+        VStack(spacing: 12) {
           TextField("Amount", text: $amountText)
+            .focused($focusedField, equals: .amount)
             .keyboardType(.decimalPad)
+            .submitLabel(.done)
+            .onSubmit { focusedField = nil }
+
+          Divider()
+
           DatePicker("Date", selection: $paymentDate, displayedComponents: .date)
+
+          Divider()
+
           TextField("Note (Optional)", text: $note, axis: .vertical)
-            .lineLimit(2...4)
+            .focused($focusedField, equals: .note)
+            .lineLimit(2...3)
+            .submitLabel(.done)
+            .onSubmit { focusedField = nil }
         }
+        .padding(20)
+        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .padding(.horizontal, 16)
+        .padding(.top, 12)
       }
+      .scrollDismissesKeyboard(.interactively)
       .navigationTitle("Add Payment")
       .navigationBarTitleDisplayMode(.inline)
       .toolbar {
@@ -213,7 +236,7 @@ private struct NativeEntryDetailsPaymentSheet: View {
             .disabled(isSaving)
         }
         ToolbarItem(placement: .confirmationAction) {
-          Button("Add Payment") {
+          Button("Add") {
             guard let amount, amount > 0, !isSaving else { return }
             isSaving = true
             onSubmit(
@@ -227,6 +250,13 @@ private struct NativeEntryDetailsPaymentSheet: View {
           .disabled(amount == nil || amount! <= 0 || isSaving)
         }
       }
+    }
+    .presentationDetents([.height(390)])
+    .presentationBackground(.clear)
+    .presentationCornerRadius(32)
+    .presentationDragIndicator(.visible)
+    .task {
+      focusedField = .amount
     }
   }
 }
@@ -246,8 +276,8 @@ private struct NativeEntryDetailsBalanceCard: View {
     VStack(alignment: .leading, spacing: 10) {
       Text(snapshot.isDeleted ? "Deleted" : snapshot.isCompleted ? "Completed" : snapshot.isOwedToMe ? "You are owed" : "You owe")
         .font(.subheadline.weight(.semibold))
-        .padding(.horizontal, 12)
-        .padding(.vertical, 7)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
         .background(.white.opacity(0.18), in: Capsule())
       Text("Remaining")
         .foregroundStyle(.white.opacity(0.92))
@@ -278,11 +308,11 @@ private struct NativeEntryDetailsBalanceCard: View {
         .background(.white.opacity(0.28), in: Capsule())
         .clipShape(Capsule())
     }
-    .padding(20)
+    .padding(16)
     .frame(maxWidth: .infinity, alignment: .leading)
     .background(
       LinearGradient(colors: colors, startPoint: .topLeading, endPoint: .bottomTrailing)
-        .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
     )
     .shadow(color: colors[1].opacity(0.18), radius: 12, y: 6)
   }
@@ -316,7 +346,7 @@ private struct NativeEntryDetailsEmptyPayments: View {
         .multilineTextAlignment(.center)
     }
     .frame(maxWidth: .infinity)
-    .padding(28)
+    .padding(20)
     .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
   }
 }
@@ -367,14 +397,13 @@ private struct NativeEntryDetailsPayments: View {
 @available(iOS 26.0, *)
 private struct NativeEntryDetailsNoteCard: View {
   let note: String
-  let isEnabled: Bool
 
   var body: some View {
     HStack(spacing: 12) {
       Image(systemName: "note.text")
         .font(.title2)
         .foregroundStyle(.indigo)
-        .frame(width: 48, height: 48)
+        .frame(width: 42, height: 42)
         .background(.indigo.opacity(0.1), in: Circle())
       VStack(alignment: .leading, spacing: 3) {
         Text("Notes").font(.headline)
@@ -383,9 +412,8 @@ private struct NativeEntryDetailsNoteCard: View {
           .lineLimit(2)
       }
       Spacer()
-      if isEnabled { Image(systemName: "chevron.right").foregroundStyle(.secondary) }
     }
-    .padding(16)
+    .padding(14)
     .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
   }
 }

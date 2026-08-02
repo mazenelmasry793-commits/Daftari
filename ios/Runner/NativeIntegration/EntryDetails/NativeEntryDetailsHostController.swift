@@ -2,17 +2,17 @@ import SwiftUI
 import UIKit
 
 @available(iOS 26.0, *)
-final class NativeEntryDetailsActionSheetPresenter {
+final class NativeEntryDetailsAlertPresenter {
   weak var hostViewController: UIViewController?
   let bridge: NativeEntryDetailsBridge
-  private var isPresentingActionSheet = false
+  private var isPresentingAlert = false
 
   init(bridge: NativeEntryDetailsBridge) {
     self.bridge = bridge
   }
 
   func presentMarkCompleted(entryID: String) {
-    presentActionSheet(
+    presentAlert(
       title: "Mark as completed?",
       message: "This will set the remaining balance to zero.",
       confirmTitle: "Mark Completed",
@@ -23,7 +23,7 @@ final class NativeEntryDetailsActionSheetPresenter {
   }
 
   func presentDelete(entryID: String) {
-    presentActionSheet(
+    presentAlert(
       title: "Delete this entry?",
       message: "You can restore it later from Trash.",
       confirmTitle: "Delete Entry",
@@ -33,52 +33,42 @@ final class NativeEntryDetailsActionSheetPresenter {
     }
   }
 
-  private func presentActionSheet(
+  private func presentAlert(
     title: String,
     message: String,
     confirmTitle: String,
     confirmStyle: UIAlertAction.Style,
     onConfirm: @escaping () -> Void
   ) {
-    guard !isPresentingActionSheet else { return }
+    guard !isPresentingAlert else { return }
     guard let hostViewController, hostViewController.presentedViewController == nil else { return }
-    isPresentingActionSheet = true
+    isPresentingAlert = true
 
     DispatchQueue.main.async { [weak self] in
       guard let self else { return }
       guard let hostViewController = self.hostViewController,
             hostViewController.presentedViewController == nil,
             hostViewController.viewIfLoaded?.window != nil else {
-        self.isPresentingActionSheet = false
+        self.isPresentingAlert = false
         return
       }
 
       let alert = UIAlertController(
         title: title,
         message: message,
-        preferredStyle: .actionSheet
-      )
-      alert.addAction(
-        UIAlertAction(title: confirmTitle, style: confirmStyle) { [weak self] _ in
-          self?.isPresentingActionSheet = false
-          onConfirm()
-        }
+        preferredStyle: .alert
       )
       alert.addAction(
         UIAlertAction(title: "Cancel", style: .cancel) { [weak self] _ in
-          self?.isPresentingActionSheet = false
+          self?.isPresentingAlert = false
         }
       )
-      if let popover = alert.popoverPresentationController {
-        popover.sourceView = hostViewController.view
-        popover.sourceRect = CGRect(
-          x: hostViewController.view.bounds.midX,
-          y: hostViewController.view.bounds.maxY - 1,
-          width: 1,
-          height: 1
-        )
-        popover.permittedArrowDirections = []
-      }
+      alert.addAction(
+        UIAlertAction(title: confirmTitle, style: confirmStyle) { [weak self] _ in
+          self?.isPresentingAlert = false
+          onConfirm()
+        }
+      )
       hostViewController.present(alert, animated: true)
     }
   }
@@ -88,7 +78,7 @@ final class NativeEntryDetailsActionSheetPresenter {
 final class NativeEntryDetailsHostController: UIViewController {
   private let bridge: NativeEntryDetailsBridge
   private let hostingController: UIHostingController<NativeEntryDetailsView>
-  private let actionSheetPresenter: NativeEntryDetailsActionSheetPresenter
+  private let alertPresenter: NativeEntryDetailsAlertPresenter
 
   init(
     bridge: NativeEntryDetailsBridge,
@@ -96,23 +86,23 @@ final class NativeEntryDetailsHostController: UIViewController {
     onEdit: @escaping (NativeEntryDetailsSnapshot) -> Void
   ) {
     self.bridge = bridge
-    let actionSheetPresenter = NativeEntryDetailsActionSheetPresenter(bridge: bridge)
-    self.actionSheetPresenter = actionSheetPresenter
+    let alertPresenter = NativeEntryDetailsAlertPresenter(bridge: bridge)
+    self.alertPresenter = alertPresenter
     hostingController = UIHostingController(
       rootView: NativeEntryDetailsView(
         bridge: bridge,
         onBack: onBack,
         onEdit: onEdit,
         onRequestMarkCompleted: { entryID in
-          actionSheetPresenter.presentMarkCompleted(entryID: entryID)
+          alertPresenter.presentMarkCompleted(entryID: entryID)
         },
         onRequestDelete: { entryID in
-          actionSheetPresenter.presentDelete(entryID: entryID)
+          alertPresenter.presentDelete(entryID: entryID)
         }
       )
     )
     super.init(nibName: nil, bundle: nil)
-    actionSheetPresenter.hostViewController = self
+    alertPresenter.hostViewController = self
   }
 
   required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }

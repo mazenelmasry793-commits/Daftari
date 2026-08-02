@@ -18,6 +18,19 @@ class IosNavigationChannel {
   ValueChanged<int>? onTabSelected;
   Future<void> Function()? onAddRequested;
   Future<void> Function()? onSettingsRequested;
+  Future<Map<String, dynamic>> Function()? onSettingsExportRequested;
+  Future<Map<String, dynamic>> Function(String contents)?
+  onSettingsImportPreviewRequested;
+  Future<void> Function(String contents, String strategy)?
+  onSettingsImportRequested;
+  Future<void> Function()? onSettingsEmptyTrashRequested;
+  Future<void> Function()? onSettingsDeleteAllDataRequested;
+  Future<void> Function()? onSettingsOpenTrashRequested;
+  Future<Map<String, dynamic>> Function()? onTrashLoadRequested;
+  Future<Map<String, dynamic>> Function(String id)? onTrashRestoreRequested;
+  Future<Map<String, dynamic>> Function(String id)?
+  onTrashDeleteForeverRequested;
+  Future<Map<String, dynamic>> Function()? onTrashEmptyRequested;
   ValueChanged<String>? onSearchQueryChanged;
   VoidCallback? onSearchActivated;
   VoidCallback? onSearchDismissed;
@@ -65,6 +78,50 @@ class IosNavigationChannel {
       case 'nativeSearchDismissed':
         onSearchDismissed?.call();
         return null;
+      case 'nativeSettingsExport':
+        return await onSettingsExportRequested?.call();
+      case 'nativeSettingsImportPreview':
+        final arguments = call.arguments;
+        final contents = arguments is Map ? arguments['contents'] : null;
+        if (contents is! String || onSettingsImportPreviewRequested == null) {
+          return null;
+        }
+        return await onSettingsImportPreviewRequested!(contents);
+      case 'nativeSettingsImport':
+        final arguments = call.arguments;
+        final contents = arguments is Map ? arguments['contents'] : null;
+        final strategy = arguments is Map ? arguments['strategy'] : null;
+        if (contents is String &&
+            strategy is String &&
+            onSettingsImportRequested != null) {
+          await onSettingsImportRequested!(contents, strategy);
+        }
+        return null;
+      case 'nativeSettingsEmptyTrash':
+        await onSettingsEmptyTrashRequested?.call();
+        return null;
+      case 'nativeSettingsDeleteAllData':
+        await onSettingsDeleteAllDataRequested?.call();
+        return null;
+      case 'nativeSettingsOpenTrash':
+        await onSettingsOpenTrashRequested?.call();
+        return null;
+      case 'nativeTrashLoad':
+        return await onTrashLoadRequested?.call();
+      case 'nativeTrashRestore':
+        final id = call.arguments is Map ? call.arguments['id'] : null;
+        if (id is String && onTrashRestoreRequested != null) {
+          return await onTrashRestoreRequested!(id);
+        }
+        return null;
+      case 'nativeTrashDeleteForever':
+        final id = call.arguments is Map ? call.arguments['id'] : null;
+        if (id is String && onTrashDeleteForeverRequested != null) {
+          return await onTrashDeleteForeverRequested!(id);
+        }
+        return null;
+      case 'nativeTrashEmpty':
+        return await onTrashEmptyRequested?.call();
       default:
         throw MissingPluginException(
           'Unknown iOS navigation method: ${call.method}',
@@ -101,6 +158,16 @@ class IosNavigationChannel {
   Future<void> activateSearchTab() async {
     if (!_isIos()) return;
     await _channel.invokeMethod<void>('activateSearchTab');
+  }
+
+  Future<void> restoreNativeSettings() async {
+    if (!_isIos()) return;
+    await _channel.invokeMethod<void>('restoreNativeSettings');
+  }
+
+  Future<void> updateNativeSearchResults(Map<String, dynamic> payload) async {
+    if (!_isIos()) return;
+    await _channel.invokeMethod<void>('nativeSearchResultsUpdated', payload);
   }
 }
 

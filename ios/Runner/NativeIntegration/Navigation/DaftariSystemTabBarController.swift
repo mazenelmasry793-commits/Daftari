@@ -17,6 +17,7 @@ final class DaftariSystemTabBarController: NSObject, UITabBarControllerDelegate 
   private let onTabSelected: (Int) -> Void
   private let onSearchActivated: () -> Void
   private let onSearchModeChanged: (Bool) -> Void
+  private let onSearchResultSelected: (String, String) -> Void
   private let searchHost: DaftariSearchHostViewController
   private let searchNavigationController: UINavigationController
   private let searchTab: UISearchTab
@@ -28,15 +29,18 @@ final class DaftariSystemTabBarController: NSObject, UITabBarControllerDelegate 
     onSearchActivated: @escaping () -> Void,
     onSearchQueryChanged: @escaping (String) -> Void,
     onSearchDismissed: @escaping () -> Void,
-    onSearchModeChanged: @escaping (Bool) -> Void
+    onSearchModeChanged: @escaping (Bool) -> Void,
+    onSearchResultSelected: @escaping (String, String) -> Void
   ) {
     self.onTabSelected = onTabSelected
     self.onSearchActivated = onSearchActivated
     self.onSearchModeChanged = onSearchModeChanged
+    self.onSearchResultSelected = onSearchResultSelected
 
     let host = DaftariSearchHostViewController(
       onQueryChanged: onSearchQueryChanged,
-      onDismissed: onSearchDismissed
+      onDismissed: onSearchDismissed,
+      onResultSelected: onSearchResultSelected
     )
     self.searchHost = host
     let searchNavigationController = UINavigationController(rootViewController: host)
@@ -111,6 +115,10 @@ final class DaftariSystemTabBarController: NSObject, UITabBarControllerDelegate 
 
   func setSearchVisible(_ visible: Bool) {
     if visible { activateSearchTab() }
+  }
+
+  func applySearchResults(payload: Any?) {
+    searchHost.applyResults(payload: payload)
   }
 
   func tabBarController(
