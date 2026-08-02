@@ -6,17 +6,23 @@ struct NativeEntryDetailsView: View {
   @ObservedObject private var store: NativeEntryDetailsStore
   let onBack: () -> Void
   let onEdit: (NativeEntryDetailsSnapshot) -> Void
+  let onRequestMarkCompleted: (String) -> Void
+  let onRequestDelete: (String) -> Void
   @State private var paymentSheetPresented = false
   @State private var paymentSheetSaving = false
 
   init(
     bridge: NativeEntryDetailsBridge,
     onBack: @escaping () -> Void,
-    onEdit: @escaping (NativeEntryDetailsSnapshot) -> Void
+    onEdit: @escaping (NativeEntryDetailsSnapshot) -> Void,
+    onRequestMarkCompleted: @escaping (String) -> Void,
+    onRequestDelete: @escaping (String) -> Void
   ) {
     self.bridge = bridge
     self.onBack = onBack
     self.onEdit = onEdit
+    self.onRequestMarkCompleted = onRequestMarkCompleted
+    self.onRequestDelete = onRequestDelete
     _store = ObservedObject(wrappedValue: bridge.store)
   }
 
@@ -111,13 +117,13 @@ struct NativeEntryDetailsView: View {
       }
       if !snapshot.isCompleted {
         Button {
-          bridge.perform(action: .markCompleted, id: snapshot.id)
+          onRequestMarkCompleted(snapshot.id)
         } label: {
           Label("Mark Completed", systemImage: "checkmark.circle")
         }
       }
       Button(role: .destructive) {
-        bridge.perform(action: .delete, id: snapshot.id)
+        onRequestDelete(snapshot.id)
       } label: {
         Label("Delete", systemImage: "trash")
       }
@@ -190,27 +196,21 @@ private struct NativeEntryDetailsPaymentSheet: View {
 
   var body: some View {
     NavigationStack {
-      VStack(spacing: 14) {
-        TextField("Amount", text: $amountText)
-          .keyboardType(.decimalPad)
-          .textFieldStyle(.roundedBorder)
-        DatePicker("Date", selection: $paymentDate, displayedComponents: .date)
-          .padding(.horizontal, 4)
-        TextField("Note (Optional)", text: $note, axis: .vertical)
-          .lineLimit(1...3)
-          .textFieldStyle(.roundedBorder)
+      Form {
+        Section {
+          TextField("Amount", text: $amountText)
+            .keyboardType(.decimalPad)
+          DatePicker("Date", selection: $paymentDate, displayedComponents: .date)
+          TextField("Note (Optional)", text: $note, axis: .vertical)
+            .lineLimit(2...4)
+        }
       }
-      .padding(20)
-      .frame(maxWidth: .infinity)
-      .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-      .padding(.horizontal, 16)
       .navigationTitle("Add Payment")
       .navigationBarTitleDisplayMode(.inline)
       .toolbar {
-          ToolbarItem(placement: .cancellationAction) {
+        ToolbarItem(placement: .cancellationAction) {
           Button("Cancel") { dismiss() }
             .disabled(isSaving)
-            .buttonStyle(.glass)
         }
         ToolbarItem(placement: .confirmationAction) {
           Button("Add Payment") {
@@ -225,13 +225,9 @@ private struct NativeEntryDetailsPaymentSheet: View {
             )
           }
           .disabled(amount == nil || amount! <= 0 || isSaving)
-          .buttonStyle(.glass)
         }
       }
     }
-    .presentationDetents([.height(320)])
-    .presentationBackground(.thinMaterial)
-    .presentationDragIndicator(.visible)
   }
 }
 

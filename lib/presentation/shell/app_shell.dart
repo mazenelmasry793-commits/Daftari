@@ -230,31 +230,20 @@ class _AppShellState extends ConsumerState<AppShell> {
             type: AppToastType.success,
           );
         case 'delete':
-          final deleted = await showConfirmationDialog(
-            context,
-            title: entry.isDeleted ? 'Delete forever?' : 'Move to trash?',
-            message: entry.isDeleted
-                ? 'This permanently deletes the entry from the database.'
-                : 'The entry will move to Trash and can be restored later.',
-            confirmLabel: entry.isDeleted ? 'Delete Forever' : 'Move to Trash',
-            destructive: true,
-          );
-          if (deleted) {
-            if (entry.isDeleted) {
-              await repository.permanentlyDelete(entry.id);
-              await appToastService.show(
-                'Deleted permanently',
-                type: AppToastType.success,
-              );
-            } else {
-              await repository.softDelete(entry.id);
-              await appToastService.show(
-                'Moved to trash',
-                type: AppToastType.success,
-              );
-            }
-            close = true;
+          if (entry.isDeleted) {
+            await repository.permanentlyDelete(entry.id);
+            await appToastService.show(
+              'Deleted permanently',
+              type: AppToastType.success,
+            );
+          } else {
+            await repository.softDelete(entry.id);
+            await appToastService.show(
+              'Moved to trash',
+              type: AppToastType.success,
+            );
           }
+          close = true;
         case 'addPayment':
           final amountValue = paymentPayload?['amount'];
           final amount = amountValue is num ? amountValue.toDouble() : null;
