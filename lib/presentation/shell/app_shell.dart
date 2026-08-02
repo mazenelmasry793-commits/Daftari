@@ -256,9 +256,16 @@ class _AppShellState extends ConsumerState<AppShell> {
             close = true;
           }
         case 'addPayment':
-          final payment = await showDialog<Payment>(
+          final payment = await showModalBottomSheet<Payment>(
             context: context,
-            builder: (_) => const AddPaymentDialog(),
+            isScrollControlled: true,
+            useSafeArea: true,
+            showDragHandle: true,
+            backgroundColor: Theme.of(context).colorScheme.surface,
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+            ),
+            builder: (_) => const AddPaymentDialog(sheetStyle: true),
           );
           if (payment != null) {
             entry.payments = List.from(entry.payments)..add(payment);
