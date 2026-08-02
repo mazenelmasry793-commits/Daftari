@@ -2,6 +2,7 @@ import UIKit
 
 final class NativeEntryFormViewController: UIViewController, UITextFieldDelegate, UITextViewDelegate {
   private let entryType: NativeEntryFormType
+  private let initialValues: NativeEntryFormInitialValues?
   private let onSubmit: (NativeEntryFormPayload, @escaping (Bool) -> Void) -> Void
   private let onDismiss: () -> Void
   var onKeyboardVisibilityChanged: ((Bool) -> Void)?
@@ -18,10 +19,12 @@ final class NativeEntryFormViewController: UIViewController, UITextFieldDelegate
 
   init(
     entryType: NativeEntryFormType,
+    initialValues: NativeEntryFormInitialValues? = nil,
     onSubmit: @escaping (NativeEntryFormPayload, @escaping (Bool) -> Void) -> Void,
     onDismiss: @escaping () -> Void
   ) {
     self.entryType = entryType
+    self.initialValues = initialValues
     self.onSubmit = onSubmit
     self.onDismiss = onDismiss
     super.init(nibName: nil, bundle: nil)
@@ -34,7 +37,7 @@ final class NativeEntryFormViewController: UIViewController, UITextFieldDelegate
   override func viewDidLoad() {
     super.viewDidLoad()
     view.backgroundColor = .clear
-    navigationItem.title = "New \(entryType.title)"
+    navigationItem.title = initialValues == nil ? "New \(entryType.title)" : "Edit \(entryType.title)"
     navigationItem.leftBarButtonItem = UIBarButtonItem(
       barButtonSystemItem: .close,
       target: self,
@@ -68,11 +71,13 @@ final class NativeEntryFormViewController: UIViewController, UITextFieldDelegate
     scrollView.addSubview(contentStack)
 
     configureTextField(titleField, placeholder: "Who owes what?", keyboardType: .default)
+    titleField.text = initialValues?.title
     titleField.returnKeyType = .next
     titleField.delegate = self
     contentStack.addArrangedSubview(fieldContainer(label: "Title", field: titleField))
 
     configureTextField(amountField, placeholder: "0.00", keyboardType: .decimalPad)
+    if let amount = initialValues?.amount { amountField.text = String(amount) }
     amountField.delegate = self
     contentStack.addArrangedSubview(fieldContainer(label: entryType.amountPlaceholder, field: amountField))
 
@@ -83,6 +88,8 @@ final class NativeEntryFormViewController: UIViewController, UITextFieldDelegate
     noteView.textContainerInset = UIEdgeInsets(top: 10, left: 10, bottom: 10, right: 10)
     noteView.textContainer.lineFragmentPadding = 0
     noteView.delegate = self
+    noteView.text = initialValues?.note ?? ""
+    notePlaceholder.isHidden = !noteView.text.isEmpty
     noteView.heightAnchor.constraint(equalToConstant: 96).isActive = true
     noteView.addSubview(notePlaceholder)
     notePlaceholder.text = "Add a reminder, explanation, or rough calculation."
@@ -98,7 +105,7 @@ final class NativeEntryFormViewController: UIViewController, UITextFieldDelegate
 
     contentStack.addArrangedSubview(formLabel("Date"))
     datePicker.datePickerMode = .date
-    datePicker.date = Date()
+    datePicker.date = initialValues?.debtDate ?? Date()
     datePicker.minimumDate = Calendar.current.date(from: DateComponents(year: 2000, month: 1, day: 1))
     datePicker.maximumDate = Calendar.current.date(from: DateComponents(year: 2100, month: 12, day: 31))
     if #available(iOS 13.4, *) {
@@ -208,6 +215,10 @@ final class NativeEntryFormViewController: UIViewController, UITextFieldDelegate
     guard !(titleField.text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "").isEmpty else { return false }
     let amount = parsedAmount()
     if entryType != .scratchpad && (amount == nil || amount ?? 0 <= 0) { return false }
+    if let paidAmount = initialValues?.paidAmount,
+       entryType != .scratchpad,
+       let amount,
+       amount < paidAmount { return false }
     return amount == nil || amount ?? 0 > 0
   }
 
@@ -228,6 +239,7 @@ final class NativeEntryFormViewController: UIViewController, UITextFieldDelegate
     updateSaveButton()
     let payload = NativeEntryFormPayload(
       type: entryType,
+      id: initialValues?.id,
       title: titleField.text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "",
       amount: parsedAmount(),
       note: noteView.text.trimmingCharacters(in: .whitespacesAndNewlines),

@@ -335,6 +335,8 @@ class _AppShellState extends ConsumerState<AppShell> {
             .toUtc()
             .toIso8601String(),
         'note': entry.note ?? '',
+        'originalAmount': original,
+        'paidAmount': paid,
         'originalText': AppFormatters.moneyValue(original),
         'paidText': AppFormatters.moneyValue(paid),
         'remainingText': AppFormatters.moneyValue(remaining),
@@ -470,19 +472,37 @@ class _AppShellState extends ConsumerState<AppShell> {
 
     try {
       final now = DateTime.now();
+      final existingId = (payload['id'] as num?)?.toInt();
+      final repository = ref.read(entryRepositoryProvider);
+      final existing = existingId == null
+          ? null
+          : await repository.getById(existingId);
+      if (existingId != null && existing == null) return false;
+      if (existing != null &&
+          type != EntryType.scratchpad &&
+          amount != null &&
+          amount < existing.paidAmount) {
+        return false;
+      }
       final entry = Entry()
-        ..id = Isar.autoIncrement
+        ..id = existing?.id ?? Isar.autoIncrement
         ..title = title
         ..amount = amount
         ..note = note.isEmpty ? null : note
         ..type = type
         ..debtDate = debtDate ?? now
-        ..status = EntryStatus.active
-        ..createdAt = now
+        ..status = existing?.status ?? EntryStatus.active
+        ..createdAt = existing?.createdAt ?? now
         ..updatedAt = now
-        ..payments = <Payment>[];
-      await ref.read(entryRepositoryProvider).save(entry);
-      await appToastService.show('Entry saved', type: AppToastType.success);
+        ..deletedAt = existing?.deletedAt
+        ..payments = List<Payment>.from(
+          existing?.payments ?? const <Payment>[],
+        );
+      await repository.save(entry);
+      await appToastService.show(
+        existing == null ? 'Entry saved' : 'Entry updated',
+        type: AppToastType.success,
+      );
       return true;
     } catch (error) {
       await appToastService.show(

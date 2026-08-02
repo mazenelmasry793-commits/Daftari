@@ -76,6 +76,33 @@ final class NativeSheetCoordinator: NSObject, UIAdaptivePresentationControllerDe
     return entryFormCoordinator.present(type: type, from: presenter, messenger: binaryMessenger)
   }
 
+  @discardableResult
+  func presentNativeEntryEdit(
+    snapshot: NativeEntryDetailsSnapshot,
+    onDismiss: @escaping () -> Void
+  ) -> Bool {
+    guard let presenter = topViewController(),
+          let binaryMessenger,
+          let type = NativeEntryFormType(rawValue: snapshot.type),
+          let id = Int(snapshot.id) else { return false }
+    let initialValues = NativeEntryFormInitialValues(
+      id: id,
+      type: type,
+      title: snapshot.title,
+      amount: snapshot.originalAmount,
+      paidAmount: snapshot.paidAmount,
+      note: snapshot.note,
+      debtDate: snapshot.date ?? Date()
+    )
+    return entryFormCoordinator.present(
+      type: type.rawValue,
+      initialValues: initialValues,
+      from: presenter,
+      messenger: binaryMessenger,
+      onDismiss: onDismiss
+    )
+  }
+
   private func completeDatePicker(selectedDate: Date?) {
     guard case .datePicker(let completion) = presentationKind else { return }
     resetPresentation()

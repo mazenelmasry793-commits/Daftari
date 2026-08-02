@@ -32,6 +32,9 @@ final class NativeEntryDetailsStore: ObservableObject {
       iso8601: rawEntry["dateIso8601"] as? String,
       fallback: fallbackDateText
     )
+    let date = parseDate(rawEntry["dateIso8601"] as? String)
+    let originalAmount = (rawEntry["originalAmount"] as? NSNumber)?.doubleValue
+    let paidAmount = (rawEntry["paidAmount"] as? NSNumber)?.doubleValue ?? 0
     let progress = min(max((rawEntry["progress"] as? NSNumber)?.doubleValue ?? 0, 0), 1)
     let payments = rawPayments.compactMap { raw -> NativeEntryDetailsPayment? in
       guard let id = raw["id"] as? Int,
@@ -56,7 +59,10 @@ final class NativeEntryDetailsStore: ObservableObject {
       paidText: paidText,
       remainingText: remainingText,
       progress: progress,
-      payments: payments
+      payments: payments,
+      date: date,
+      originalAmount: originalAmount,
+      paidAmount: paidAmount
     )
     isLoading = false
     errorMessage = nil
@@ -72,5 +78,12 @@ final class NativeEntryDetailsStore: ObservableObject {
     formatter.timeStyle = .none
     formatter.locale = .current
     return formatter.string(from: date)
+  }
+
+  private func parseDate(_ value: String?) -> Date? {
+    guard let value else { return nil }
+    let formatter = ISO8601DateFormatter()
+    formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+    return formatter.date(from: value) ?? ISO8601DateFormatter().date(from: value)
   }
 }

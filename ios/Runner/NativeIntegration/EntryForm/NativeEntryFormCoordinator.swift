@@ -6,12 +6,19 @@ final class NativeEntryFormCoordinator {
   private var presentationDelegate: PresentationDelegate?
   private var isPresented = false
 
-  func present(type: String, from presenter: UIViewController, messenger: FlutterBinaryMessenger) -> Bool {
+  func present(
+    type: String,
+    initialValues: NativeEntryFormInitialValues? = nil,
+    from presenter: UIViewController,
+    messenger: FlutterBinaryMessenger,
+    onDismiss: (() -> Void)? = nil
+  ) -> Bool {
     guard !isPresented, let entryType = NativeEntryFormType(rawValue: type) else { return false }
     isPresented = true
 
     let formViewController = NativeEntryFormViewController(
       entryType: entryType,
+      initialValues: initialValues,
       onSubmit: { [weak self] payload, completion in
       let channel = FlutterMethodChannel(
         name: NativeChannelConstants.sheetsChannel,
@@ -75,7 +82,8 @@ final class NativeEntryFormCoordinator {
       }
     }
     let presentationDelegate = PresentationDelegate { [weak self] in
-      self?.reset()
+        self?.reset()
+        onDismiss?()
     }
     self.presentationDelegate = presentationDelegate
     navigationController.presentationController?.delegate = presentationDelegate

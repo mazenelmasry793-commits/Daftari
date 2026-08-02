@@ -20,6 +20,7 @@ enum NativeEntryFormType: String {
 
 struct NativeEntryFormPayload {
   let type: NativeEntryFormType
+  let id: Int?
   let title: String
   let amount: Double?
   let note: String
@@ -32,9 +33,20 @@ struct NativeEntryFormPayload {
       "note": note,
       "debtDate": ISO8601DateFormatter().string(from: debtDate),
     ]
+    if let id { result["id"] = id }
     if let amount {
       result["amount"] = amount
     }
     return result
   }
+}
+
+struct NativeEntryFormInitialValues {
+  let id: Int
+  let type: NativeEntryFormType
+  let title: String
+  let amount: Double?
+  let paidAmount: Double
+  let note: String
+  let debtDate: Date
 }

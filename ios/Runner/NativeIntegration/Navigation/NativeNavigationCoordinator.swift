@@ -207,7 +207,8 @@ final class NativeNavigationCoordinator {
       }
       let entryDetailsHost = NativeEntryDetailsHostController(
         bridge: entryDetailsBridge,
-        onBack: { [weak self] in self?.closeNativeDetails() }
+        onBack: { [weak self] in self?.closeNativeDetails() },
+        onEdit: { [weak self] snapshot in self?.openNativeEdit(snapshot: snapshot) }
       )
       rootViewController.addChild(entryDetailsHost)
       rootViewController.view.addSubview(entryDetailsHost.view)
@@ -414,6 +415,20 @@ final class NativeNavigationCoordinator {
     detailsHost.view.isHidden = false
     rootViewController.view.bringSubviewToFront(detailsHost.view)
     updateNativeSurfaceVisibility(animated: true)
+  }
+
+  @available(iOS 26.0, *)
+  private func openNativeEdit(snapshot: NativeEntryDetailsSnapshot) {
+    guard nativeDetailVisible else { return }
+    nativeDetailVisible = false
+    nativeEntryDetailsHost?.view.isHidden = true
+    updateNativeSurfaceVisibility(animated: true)
+    let presented = sheetCoordinator.presentNativeEntryEdit(snapshot: snapshot) { [weak self] in
+      self?.finishNativeDetailsAction(id: snapshot.id, close: false)
+    }
+    if !presented {
+      finishNativeDetailsAction(id: snapshot.id, close: false)
+    }
   }
 
   deinit {

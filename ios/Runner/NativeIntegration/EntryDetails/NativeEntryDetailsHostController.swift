@@ -6,10 +6,14 @@ final class NativeEntryDetailsHostController: UIViewController {
   private let bridge: NativeEntryDetailsBridge
   private let hostingController: UIHostingController<NativeEntryDetailsView>
 
-  init(bridge: NativeEntryDetailsBridge, onBack: @escaping () -> Void) {
+  init(
+    bridge: NativeEntryDetailsBridge,
+    onBack: @escaping () -> Void,
+    onEdit: @escaping (NativeEntryDetailsSnapshot) -> Void
+  ) {
     self.bridge = bridge
     hostingController = UIHostingController(
-      rootView: NativeEntryDetailsView(bridge: bridge, onBack: onBack)
+      rootView: NativeEntryDetailsView(bridge: bridge, onBack: onBack, onEdit: onEdit)
     )
     super.init(nibName: nil, bundle: nil)
   }

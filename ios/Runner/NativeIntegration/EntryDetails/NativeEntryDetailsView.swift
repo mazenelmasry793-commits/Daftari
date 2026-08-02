@@ -5,10 +5,16 @@ struct NativeEntryDetailsView: View {
   let bridge: NativeEntryDetailsBridge
   @ObservedObject private var store: NativeEntryDetailsStore
   let onBack: () -> Void
+  let onEdit: (NativeEntryDetailsSnapshot) -> Void
 
-  init(bridge: NativeEntryDetailsBridge, onBack: @escaping () -> Void) {
+  init(
+    bridge: NativeEntryDetailsBridge,
+    onBack: @escaping () -> Void,
+    onEdit: @escaping (NativeEntryDetailsSnapshot) -> Void
+  ) {
     self.bridge = bridge
     self.onBack = onBack
+    self.onEdit = onEdit
     _store = ObservedObject(wrappedValue: bridge.store)
   }
 
@@ -86,7 +92,7 @@ struct NativeEntryDetailsView: View {
       }
     } else {
       Button {
-        bridge.perform(action: .edit, id: snapshot.id)
+        onEdit(snapshot)
       } label: {
         Label("Edit", systemImage: "pencil")
       }
@@ -143,7 +149,7 @@ struct NativeEntryDetailsView: View {
         }
 
         Button {
-          if !snapshot.isDeleted { bridge.perform(action: .edit, id: snapshot.id) }
+          if !snapshot.isDeleted { onEdit(snapshot) }
         } label: {
           NativeEntryDetailsNoteCard(note: snapshot.note, isEnabled: !snapshot.isDeleted)
         }

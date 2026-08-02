@@ -19,6 +19,9 @@ struct NativeEntryDetailsSnapshot: Equatable {
   let remainingText: String
   let progress: Double
   let payments: [NativeEntryDetailsPayment]
+  let date: Date?
+  let originalAmount: Double?
+  let paidAmount: Double
 
   var isOwedToMe: Bool { type == "owedToMe" }
   var isDeleted: Bool { status == "deleted" }
