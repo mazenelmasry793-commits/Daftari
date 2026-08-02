@@ -67,9 +67,16 @@ final class DaftariSearchHostViewController: UIViewController, UISearchResultsUp
 
   func applyResults(payload: Any?) { store.apply(payload: payload) }
 
+  func endSearchEditing() {
+    searchController.searchBar.searchTextField.resignFirstResponder()
+    searchController.searchBar.endEditing(true)
+    view.endEditing(true)
+    view.window?.endEditing(true)
+  }
+
   func prepareForActivation() {
+    endSearchEditing()
     searchController.searchBar.text = ""
-    searchController.searchBar.resignFirstResponder()
     store.setQuery("")
     view.alpha = 1
     view.isHidden = false
@@ -80,12 +87,14 @@ final class DaftariSearchHostViewController: UIViewController, UISearchResultsUp
   }
 
   func didDismissSearchController(_ searchController: UISearchController) {
+    endSearchEditing()
     searchController.searchBar.text = ""
     onQueryChanged("")
     onDismissed()
   }
 
   func willDismissSearchController(_ searchController: UISearchController) {
+    endSearchEditing()
     onSearchDismissalBegan?()
   }
 }

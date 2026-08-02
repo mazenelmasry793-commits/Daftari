@@ -136,6 +136,10 @@ final class DaftariSystemTabBarController: NSObject, UITabBarControllerDelegate 
     didSelectTab selectedTab: UITab,
     previousTab: UITab?
   ) {
+    if previousTab?.identifier == searchTab.identifier,
+       selectedTab.identifier != searchTab.identifier {
+      searchHost.endSearchEditing()
+    }
     guard let index = tabsByIdentifier[selectedTab.identifier] else { return }
     if pendingProgrammaticTabIndex == index {
       pendingProgrammaticTabIndex = nil
