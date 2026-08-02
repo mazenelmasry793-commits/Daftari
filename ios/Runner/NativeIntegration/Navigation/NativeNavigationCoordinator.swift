@@ -12,11 +12,14 @@ final class NativeNavigationCoordinator {
   private var nativeDashboardHost: UIViewController?
   private var entriesBridge: NativeEntriesBridge?
   private var nativeEntryHosts: [NativeEntryListType: UIViewController] = [:]
+  private var nativeEntryDetailsBridge: NativeEntryDetailsBridge?
+  private var nativeEntryDetailsHost: UIViewController?
   private var settingsButton: NativeSettingsButtonView?
   private var selectedTabIndex = 0
   private var searchModeActive = false
   private var navigationVisible = true
   private var flutterDetailVisible = false
+  private var nativeDetailVisible = false
   private var nativeDashboardInstalled = false
   // Keeps the native control clear of the screen edge while preserving its
   // safe-area-aligned header position.
@@ -54,8 +57,13 @@ final class NativeNavigationCoordinator {
         onSettingsRequested: { [weak channel] in
           channel?.invokeMethod(NativeChannelConstants.NavigationMethod.openSettings, arguments: nil)
         },
-        onEntrySelected: { [weak self, weak dashboardBridge] id in
-          self?.openNativeDetails(id: id, bridge: dashboardBridge)
+        onEntrySelected: { [weak self] id, type in
+          guard let self else { return }
+          if type == NativeEntryListType.scratchpad.rawValue {
+            (self.dashboardBridge as? NativeDashboardBridge)?.openEntryDetails(id: id)
+          } else {
+            self.openNativeDetails(id: id)
+          }
         }
       )
       self.dashboardBridge = dashboardBridge
@@ -83,8 +91,13 @@ final class NativeNavigationCoordinator {
           onSettings: { [weak channel] in
             channel?.invokeMethod(NativeChannelConstants.NavigationMethod.openSettings, arguments: nil)
           },
-          onEntrySelected: { [weak self, weak entriesBridge] id in
-            self?.openNativeDetails(id: id, bridge: entriesBridge)
+          onEntrySelected: { [weak self] id in
+            guard let self else { return }
+            if type == .scratchpad {
+              entriesBridge.openEntryDetails(id: id)
+            } else {
+              self.openNativeDetails(id: id)
+            }
           }
         )
         rootViewController.addChild(host)
@@ -182,6 +195,27 @@ final class NativeNavigationCoordinator {
       ])
       navigationBarHost.didMove(toParent: rootViewController)
       self.navigationBarHost = navigationBarHost
+
+      let entryDetailsBridge = NativeEntryDetailsBridge(
+        binaryMessenger: rootViewController.binaryMessenger
+      )
+      let entryDetailsHost = NativeEntryDetailsHostController(
+        bridge: entryDetailsBridge,
+        onBack: { [weak self] in self?.closeNativeDetails() }
+      )
+      rootViewController.addChild(entryDetailsHost)
+      rootViewController.view.addSubview(entryDetailsHost.view)
+      entryDetailsHost.view.translatesAutoresizingMaskIntoConstraints = false
+      NSLayoutConstraint.activate([
+        entryDetailsHost.view.leadingAnchor.constraint(equalTo: rootViewController.view.leadingAnchor),
+        entryDetailsHost.view.trailingAnchor.constraint(equalTo: rootViewController.view.trailingAnchor),
+        entryDetailsHost.view.topAnchor.constraint(equalTo: rootViewController.view.topAnchor),
+        entryDetailsHost.view.bottomAnchor.constraint(equalTo: rootViewController.view.bottomAnchor),
+      ])
+      entryDetailsHost.didMove(toParent: rootViewController)
+      entryDetailsHost.view.isHidden = true
+      self.nativeEntryDetailsBridge = entryDetailsBridge
+      self.nativeEntryDetailsHost = entryDetailsHost
       updateNativeSurfaceVisibility(animated: false)
     } else {
       rootViewController.view.addSubview(navigationView)
@@ -280,7 +314,8 @@ final class NativeNavigationCoordinator {
         navigationVisible &&
         homeSelected &&
         !searchModeActive &&
-        !flutterDetailVisible
+        !flutterDetailVisible &&
+        !nativeDetailVisible
       let shouldShowLegacyHeader =
         false
 
@@ -297,9 +332,11 @@ final class NativeNavigationCoordinator {
           navigationVisible &&
           selectedTabIndex == tabIndex &&
           !searchModeActive &&
-          !flutterDetailVisible
+          !flutterDetailVisible &&
+          !nativeDetailVisible
         )
       }
+      nativeEntryDetailsHost?.view.isHidden = !nativeDetailVisible
       (navigationBarHost as? DaftariNavigationBarHostViewController)?.setVisible(
         shouldShowLegacyHeader,
         animated: animated
@@ -325,15 +362,28 @@ final class NativeNavigationCoordinator {
     }
   }
 
-  private func openNativeDetails(id: String, bridge: AnyObject?) {
-    guard !flutterDetailVisible else { return }
-    flutterDetailVisible = true
-    updateNativeSurfaceVisibility(animated: false)
-    if let bridge = bridge as? NativeDashboardBridge {
-      bridge.openEntryDetails(id: id)
-    } else if let bridge = bridge as? NativeEntriesBridge {
-      bridge.openEntryDetails(id: id)
-    }
+  @available(iOS 26.0, *)
+  private func openNativeDetails(id: String) {
+    guard !nativeDetailVisible, !flutterDetailVisible,
+          let detailsHost = nativeEntryDetailsHost,
+          let detailsBridge = nativeEntryDetailsBridge else { return }
+    nativeDetailVisible = true
+    navigationVisible = false
+    (systemTabBarController as? DaftariSystemTabBarController)?.setNavigationVisible(false, animated: true)
+    detailsHost.view.isHidden = false
+    rootViewController.view.bringSubviewToFront(detailsHost.view)
+    detailsBridge.load(id: id)
+    updateNativeSurfaceVisibility(animated: true)
+  }
+
+  @available(iOS 26.0, *)
+  private func closeNativeDetails() {
+    guard nativeDetailVisible else { return }
+    nativeDetailVisible = false
+    navigationVisible = true
+    nativeEntryDetailsHost?.view.isHidden = true
+    (systemTabBarController as? DaftariSystemTabBarController)?.setNavigationVisible(true, animated: true)
+    updateNativeSurfaceVisibility(animated: true)
   }
 
   deinit {

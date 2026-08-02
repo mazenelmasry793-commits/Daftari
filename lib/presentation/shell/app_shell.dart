@@ -3,12 +3,16 @@ import 'dart:io';
 
 import 'package:debt_tracker/core/platform/ios_navigation_channel.dart';
 import 'package:debt_tracker/core/platform/native_dashboard_channel.dart';
+import 'package:debt_tracker/core/platform/native_entry_details_channel.dart';
 import 'package:debt_tracker/core/platform/app_toast_service.dart';
+import 'package:debt_tracker/core/widgets/confirm_dialog.dart';
 import 'package:debt_tracker/core/platform/native_sheets_channel.dart';
+import 'package:debt_tracker/core/utils/formatters.dart';
 import 'package:debt_tracker/data/models/entry.dart';
 import 'package:debt_tracker/features/dashboard/dashboard_screen.dart';
 import 'package:debt_tracker/features/entry_details/entry_details_screen.dart';
 import 'package:debt_tracker/features/entry_form/entry_form_screen.dart';
+import 'package:debt_tracker/features/entry_details/widgets/add_payment_dialog.dart';
 import 'package:debt_tracker/features/owed_by_me/owed_by_me_screen.dart';
 import 'package:debt_tracker/features/owed_to_me/owed_to_me_screen.dart';
 import 'package:debt_tracker/features/scratchpad/scratchpad_screen.dart';
@@ -51,6 +55,9 @@ class _AppShellState extends ConsumerState<AppShell> {
     iosNavigationChannel.onSearchActivated = _enterSearchFromNative;
     iosNavigationChannel.onSearchDismissed = _dismissSearch;
     nativeDashboardChannel.onOpenEntryDetails = _openNativeEntryDetails;
+    nativeEntryDetailsChannel.onLoadEntry = _loadNativeEntryDetails;
+    nativeEntryDetailsChannel.onPerformAction =
+        _performNativeEntryDetailsAction;
     nativeSheetsChannel.onAddEntryTypeSelected = _handleNativeEntryType;
     nativeSheetsChannel.onNativeEntryFormSubmitted = _saveNativeEntry;
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -71,6 +78,8 @@ class _AppShellState extends ConsumerState<AppShell> {
     iosNavigationChannel.onSearchActivated = null;
     iosNavigationChannel.onSearchDismissed = null;
     nativeDashboardChannel.onOpenEntryDetails = null;
+    nativeEntryDetailsChannel.onLoadEntry = null;
+    nativeEntryDetailsChannel.onPerformAction = null;
     nativeSheetsChannel.onAddEntryTypeSelected = null;
     nativeSheetsChannel.onNativeEntryFormSubmitted = null;
     unawaited(iosNavigationChannel.setNavigationVisible(false));
@@ -169,6 +178,179 @@ class _AppShellState extends ConsumerState<AppShell> {
       }
       _nativeDetailOpening = false;
     }
+  }
+
+  Future<Map<String, dynamic>> _loadNativeEntryDetails(String id) async {
+    final entry = await ref
+        .read(entryRepositoryProvider)
+        .getById(int.parse(id));
+    return _nativeEntryDetailsResponse(entry);
+  }
+
+  Future<Map<String, dynamic>> _performNativeEntryDetailsAction(
+    String id,
+    String action,
+    int? paymentId,
+  ) async {
+    final repository = ref.read(entryRepositoryProvider);
+    var entry = await repository.getById(int.parse(id));
+    if (entry == null) return _nativeEntryDetailsResponse(null, close: true);
+    var close = false;
+
+    try {
+      switch (action) {
+        case 'edit':
+          final result = await showModalBottomSheet<Entry?>(
+            context: context,
+            isScrollControlled: true,
+            useSafeArea: true,
+            showDragHandle: true,
+            backgroundColor: Theme.of(context).colorScheme.surface,
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+            ),
+            builder: (context) => ClipRRect(
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(28),
+              ),
+              child: EntryFormScreen(entry: entry!, initialType: entry.type),
+            ),
+          );
+          if (result != null) entry = result;
+        case 'markCompleted':
+          await repository.markCompleted(entry.id);
+          await appToastService.show(
+            'Marked as completed',
+            type: AppToastType.success,
+          );
+        case 'restore':
+          await repository.restore(entry.id);
+          await appToastService.show(
+            'Entry restored',
+            type: AppToastType.success,
+          );
+        case 'delete':
+          final deleted = await showConfirmationDialog(
+            context,
+            title: entry.isDeleted ? 'Delete forever?' : 'Move to trash?',
+            message: entry.isDeleted
+                ? 'This permanently deletes the entry from the database.'
+                : 'The entry will move to Trash and can be restored later.',
+            confirmLabel: entry.isDeleted ? 'Delete Forever' : 'Move to Trash',
+            destructive: true,
+          );
+          if (deleted) {
+            if (entry.isDeleted) {
+              await repository.permanentlyDelete(entry.id);
+              await appToastService.show(
+                'Deleted permanently',
+                type: AppToastType.success,
+              );
+            } else {
+              await repository.softDelete(entry.id);
+              await appToastService.show(
+                'Moved to trash',
+                type: AppToastType.success,
+              );
+            }
+            close = true;
+          }
+        case 'addPayment':
+          final payment = await showDialog<Payment>(
+            context: context,
+            builder: (_) => const AddPaymentDialog(),
+          );
+          if (payment != null) {
+            entry.payments = List.from(entry.payments)..add(payment);
+            entry.updatedAt = DateTime.now();
+            if (entry.remainingAmount <= 0)
+              entry.status = EntryStatus.completed;
+            await repository.save(entry);
+            await appToastService.show(
+              'Payment added',
+              type: AppToastType.success,
+            );
+          }
+        case 'deletePayment':
+          if (paymentId == null ||
+              paymentId < 0 ||
+              paymentId >= entry.payments.length) {
+            break;
+          }
+          final payment = entry.payments[paymentId];
+          final deleted = await showConfirmationDialog(
+            context,
+            title: 'Delete Payment?',
+            message: 'Are you sure you want to delete this payment?',
+            confirmLabel: 'Delete',
+            destructive: true,
+          );
+          if (deleted) {
+            entry.payments = List.from(entry.payments)..remove(payment);
+            entry.updatedAt = DateTime.now();
+            if (entry.remainingAmount > 0 &&
+                entry.status == EntryStatus.completed) {
+              entry.status = EntryStatus.active;
+            }
+            await repository.save(entry);
+          }
+      }
+      entry = await repository.getById(entry.id);
+      return _nativeEntryDetailsResponse(entry, close: close);
+    } catch (_) {
+      await appToastService.show(
+        'Something went wrong',
+        type: AppToastType.error,
+      );
+      return _nativeEntryDetailsResponse(entry);
+    }
+  }
+
+  Map<String, dynamic> _nativeEntryDetailsResponse(
+    Entry? entry, {
+    bool close = false,
+  }) {
+    if (entry == null)
+      return {'schemaVersion': 1, 'close': close, 'entry': null};
+    final original = entry.amount ?? 0.0;
+    final paid = entry.paidAmount;
+    final remaining = entry.remainingAmount;
+    final progress = original <= 0 ? 0.0 : (paid / original).clamp(0.0, 1.0);
+    return {
+      'schemaVersion': 1,
+      'close': close,
+      'entry': {
+        'id': entry.id.toString(),
+        'title': entry.title,
+        'type': entry.type.name,
+        'status': entry.isDeleted
+            ? 'deleted'
+            : entry.status == EntryStatus.completed
+            ? 'completed'
+            : 'active',
+        'dateText': AppFormatters.date.format(
+          entry.debtDate ?? entry.createdAt,
+        ),
+        'note': entry.note ?? '',
+        'originalText': AppFormatters.moneyValue(original),
+        'paidText': AppFormatters.moneyValue(paid),
+        'remainingText': AppFormatters.moneyValue(remaining),
+        'progress': progress,
+        'payments': [
+          for (var index = 0; index < entry.payments.length; index++)
+            {
+              'id': index,
+              'amountText': AppFormatters.moneyValue(
+                entry.payments[index].amount,
+              ),
+              'dateText': AppFormatters.dateTime.format(
+                entry.payments[index].date,
+              ),
+              'note': entry.payments[index].note ?? '',
+            },
+        ],
+      },
+    };
   }
 
   void _openForm({EntryType? initialType, Entry? entry}) {

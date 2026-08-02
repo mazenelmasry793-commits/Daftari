@@ -5,7 +5,7 @@ struct NativeDashboardView: View {
   @ObservedObject var store: NativeDashboardStore
   let onAddEntryTypeSelected: (String) -> Void
   let onSettingsRequested: () -> Void
-  let onEntrySelected: (String) -> Void
+  let onEntrySelected: (String, String) -> Void
 
   var body: some View {
     NavigationStack {
@@ -74,7 +74,7 @@ struct NativeDashboardView: View {
           VStack(spacing: 0) {
             ForEach(snapshot.recentEntries) { entry in
               Button {
-                onEntrySelected(entry.id)
+                onEntrySelected(entry.id, entry.type)
               } label: {
                 NativeDashboardEntryRow(entry: entry)
               }

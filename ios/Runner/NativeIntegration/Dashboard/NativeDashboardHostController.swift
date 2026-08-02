@@ -7,13 +7,13 @@ final class NativeDashboardHostController: UIViewController {
   private let hostingController: UIHostingController<NativeDashboardView>
   private let onAddEntryTypeSelected: (String) -> Void
   private let onSettingsRequested: () -> Void
-  private let onEntrySelected: (String) -> Void
+  private let onEntrySelected: (String, String) -> Void
 
   init(
     dashboardBridge: NativeDashboardBridge,
     onAddEntryTypeSelected: @escaping (String) -> Void,
     onSettingsRequested: @escaping () -> Void,
-    onEntrySelected: @escaping (String) -> Void
+    onEntrySelected: @escaping (String, String) -> Void
   ) {
     self.dashboardBridge = dashboardBridge
     self.onAddEntryTypeSelected = onAddEntryTypeSelected
