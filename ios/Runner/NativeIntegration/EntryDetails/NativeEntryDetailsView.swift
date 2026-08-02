@@ -37,7 +37,8 @@ struct NativeEntryDetailsView: View {
       .toolbar {
         ToolbarItem(placement: .topBarLeading) {
           Button(action: onBack) {
-            Image(systemName: "chevron.left")
+            Label("Back", systemImage: "chevron.left")
+              .labelStyle(.iconOnly)
           }
           .buttonStyle(.glass)
           .buttonBorderShape(.circle)
