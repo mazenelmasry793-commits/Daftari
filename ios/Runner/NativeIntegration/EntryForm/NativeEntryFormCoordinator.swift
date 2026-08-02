@@ -22,6 +22,16 @@ final class NativeEntryFormCoordinator {
       return presentScratchpad(from: presenter, messenger: messenger)
     }
 
+    if entryType != .scratchpad, #available(iOS 16.4, *) {
+      return presentDebtForm(
+        entryType: entryType,
+        initialValues: initialValues,
+        from: presenter,
+        messenger: messenger,
+        onDismiss: onDismiss
+      )
+    }
+
     let formViewController = NativeEntryFormViewController(
       entryType: entryType,
       initialValues: initialValues,
@@ -96,6 +106,68 @@ final class NativeEntryFormCoordinator {
     presentedNavigationController = navigationController
     presenter.present(navigationController, animated: true) { [weak self, weak navigationController] in
       guard let self, let navigationController, navigationController.presentingViewController != nil else {
+        self?.reset()
+        return
+      }
+    }
+    return true
+  }
+
+  @available(iOS 16.4, *)
+  private func presentDebtForm(
+    entryType: NativeEntryFormType,
+    initialValues: NativeEntryFormInitialValues?,
+    from presenter: UIViewController,
+    messenger: FlutterBinaryMessenger,
+    onDismiss: (() -> Void)?
+  ) -> Bool {
+    let formViewController = UIHostingController(
+      rootView: NativeDebtFormView(
+        entryType: entryType,
+        initialValues: initialValues,
+        onSubmit: { [weak self] payload, completion in
+          let channel = FlutterMethodChannel(
+            name: NativeChannelConstants.sheetsChannel,
+            binaryMessenger: messenger
+          )
+          channel.invokeMethod(
+            NativeChannelConstants.SheetMethod.nativeEntryFormSubmitted,
+            arguments: payload.dictionary
+          ) { result in
+            let didSave = (result as? Bool) == true
+            DispatchQueue.main.async {
+              completion(didSave)
+              if didSave { self?.reset() }
+            }
+          }
+        }
+      )
+    )
+    formViewController.modalPresentationStyle = .pageSheet
+    formViewController.view.backgroundColor = .clear
+    if #available(iOS 15.0, *), let sheet = formViewController.sheetPresentationController {
+      if #available(iOS 16.0, *) {
+        sheet.detents = [
+          .custom(identifier: .init("nativeDebtFormCompact")) { context in
+            min(520, context.maximumDetentValue)
+          },
+        ]
+      } else {
+        sheet.detents = [.medium()]
+      }
+      sheet.selectedDetentIdentifier = sheet.detents.first?.identifier
+      sheet.prefersGrabberVisible = true
+      sheet.preferredCornerRadius = 28
+    }
+    let presentationDelegate = PresentationDelegate { [weak self] in
+      self?.reset()
+      onDismiss?()
+    }
+    self.presentationDelegate = presentationDelegate
+    formViewController.presentationController?.delegate = presentationDelegate
+    presentedViewController = formViewController
+    presenter.present(formViewController, animated: true) { [weak self, weak formViewController] in
+      guard let self, let formViewController, formViewController.presentingViewController != nil else {
         self?.reset()
         return
       }

@@ -187,7 +187,6 @@ class _AppShellState extends ConsumerState<AppShell> {
       _lastContentTabIndex = restoredIndex;
     });
     unawaited(iosNavigationChannel.setSearchVisible(false));
-    unawaited(iosNavigationChannel.setSelectedTab(restoredIndex));
     unawaited(_updateNativeSearchResults(''));
   }
 

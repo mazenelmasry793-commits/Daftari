@@ -338,6 +338,14 @@ final class NativeNavigationCoordinator {
         navigationView?.setSelectedTab(arguments?["index"] as? Int ?? 0)
         if #available(iOS 26.0, *) {
           if let index = arguments?["index"] as? Int {
+            guard (0...3).contains(index) else {
+              result(nil)
+              return
+            }
+            if index == self?.selectedTabIndex && self?.searchState == .inactive {
+              result(nil)
+              return
+            }
             self?.selectedTabIndex = index
             if (0...3).contains(index) {
               self?.lastContentTabIndex = index
@@ -417,12 +425,14 @@ final class NativeNavigationCoordinator {
 
   private func updateNativeSurfaceVisibility(animated: Bool) {
     if #available(iOS 26.0, *) {
-      let homeSelected = selectedTabIndex == 0
+      // Search is an overlay. Keep the last real native content host visible
+      // underneath it so UIKit never reveals Flutter during a transition.
+      let visibleContentTabIndex = searchModeActive ? lastContentTabIndex : selectedTabIndex
+      let homeSelected = visibleContentTabIndex == 0
       let shouldShowNativeDashboard =
         nativeDashboardInstalled &&
         navigationVisible &&
         homeSelected &&
-        !searchModeActive &&
         !flutterDetailVisible &&
         !nativeDetailVisible &&
         !nativeNoteDetailVisible &&
@@ -442,8 +452,7 @@ final class NativeNavigationCoordinator {
         host.view.isHidden = !(
           nativeDashboardInstalled &&
           navigationVisible &&
-          selectedTabIndex == tabIndex &&
-          !searchModeActive &&
+          visibleContentTabIndex == tabIndex &&
           !flutterDetailVisible &&
           !nativeDetailVisible &&
           !nativeNoteDetailVisible &&
@@ -513,7 +522,6 @@ final class NativeNavigationCoordinator {
   private func beginNativeSearchActivation(channel: FlutterMethodChannel?) {
     guard searchState == .inactive else { return }
     searchState = .presenting
-    selectedTabIndex = 4
     channel?.invokeMethod("nativeSearchActivated", arguments: nil)
   }
 

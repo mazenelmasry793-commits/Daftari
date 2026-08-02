@@ -105,8 +105,10 @@ final class DaftariSystemTabBarController: NSObject, UITabBarControllerDelegate 
 
   func setSelectedTab(_ index: Int) {
     guard index >= 0, index < viewController.tabs.count else { return }
+    let target = viewController.tabs[index]
+    guard viewController.selectedTab !== target else { return }
     suppressTabSelectionCallback = true
-    viewController.selectedTab = viewController.tabs[index]
+    viewController.selectedTab = target
     suppressTabSelectionCallback = false
   }
 
