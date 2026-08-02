@@ -7,6 +7,12 @@ struct NativeEntryDetailsPayment: Identifiable, Equatable {
   let note: String
 }
 
+struct NativeEntryDetailsPaymentInput {
+  let amount: Double
+  let date: Date
+  let note: String
+}
+
 struct NativeEntryDetailsSnapshot: Equatable {
   let id: String
   let title: String

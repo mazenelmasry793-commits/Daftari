@@ -44,8 +44,9 @@ void main() {
       isIos: () => true,
     );
     final calls = <List<Object?>>[];
-    details.onPerformAction = (id, action, paymentID) async {
+    details.onPerformAction = (id, action, paymentID, payment) async {
       calls.add([id, action, paymentID]);
+      expect(payment, isNull);
       return <String, dynamic>{};
     };
 
@@ -88,15 +89,26 @@ void main() {
       );
       String? receivedID;
       String? receivedAction;
-      details.onPerformAction = (id, action, paymentID) async {
+      details.onPerformAction = (id, action, paymentID, payment) async {
         receivedID = id;
         receivedAction = action;
         expect(paymentID, isNull);
+        expect(payment, {
+          'amount': 100.0,
+          'dateIso8601': '2026-08-02T00:00:00.000Z',
+          'note': 'Dinner',
+        });
         return <String, dynamic>{};
       };
 
       await details.handleNativeCall(
-        const MethodCall('performAction', {'id': '42', 'action': 'addPayment'}),
+        const MethodCall('performAction', {
+          'id': '42',
+          'action': 'addPayment',
+          'amount': 100.0,
+          'dateIso8601': '2026-08-02T00:00:00.000Z',
+          'note': 'Dinner',
+        }),
       );
 
       expect(receivedID, '42');

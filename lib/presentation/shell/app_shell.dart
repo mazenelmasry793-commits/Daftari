@@ -12,7 +12,6 @@ import 'package:debt_tracker/data/models/entry.dart';
 import 'package:debt_tracker/features/dashboard/dashboard_screen.dart';
 import 'package:debt_tracker/features/entry_details/entry_details_screen.dart';
 import 'package:debt_tracker/features/entry_form/entry_form_screen.dart';
-import 'package:debt_tracker/features/entry_details/widgets/add_payment_dialog.dart';
 import 'package:debt_tracker/features/owed_by_me/owed_by_me_screen.dart';
 import 'package:debt_tracker/features/owed_to_me/owed_to_me_screen.dart';
 import 'package:debt_tracker/features/scratchpad/scratchpad_screen.dart';
@@ -191,6 +190,7 @@ class _AppShellState extends ConsumerState<AppShell> {
     String id,
     String action,
     int? paymentId,
+    Map<String, dynamic>? paymentPayload,
   ) async {
     final repository = ref.read(entryRepositoryProvider);
     var entry = await repository.getById(int.parse(id));
@@ -256,28 +256,32 @@ class _AppShellState extends ConsumerState<AppShell> {
             close = true;
           }
         case 'addPayment':
-          final payment = await showModalBottomSheet<Payment>(
-            context: context,
-            isScrollControlled: true,
-            useSafeArea: true,
-            showDragHandle: true,
-            backgroundColor: Theme.of(context).colorScheme.surface,
-            shape: const RoundedRectangleBorder(
-              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-            ),
-            builder: (_) => const AddPaymentDialog(sheetStyle: true),
+          final amountValue = paymentPayload?['amount'];
+          final amount = amountValue is num ? amountValue.toDouble() : null;
+          final paymentDate = DateTime.tryParse(
+            paymentPayload?['dateIso8601'] as String? ?? '',
           );
-          if (payment != null) {
-            entry.payments = List.from(entry.payments)..add(payment);
-            entry.updatedAt = DateTime.now();
-            if (entry.remainingAmount <= 0)
-              entry.status = EntryStatus.completed;
-            await repository.save(entry);
+          if (amount == null || amount <= 0 || paymentDate == null) {
             await appToastService.show(
-              'Payment added',
-              type: AppToastType.success,
+              'Enter a valid payment amount and date',
+              type: AppToastType.error,
             );
+            return _nativeEntryDetailsResponse(entry, actionSucceeded: false);
           }
+          final payment = Payment()
+            ..amount = amount
+            ..date = paymentDate
+            ..note = (paymentPayload?['note'] as String? ?? '').trim().isEmpty
+                ? null
+                : (paymentPayload?['note'] as String).trim();
+          entry.payments = List.from(entry.payments)..add(payment);
+          entry.updatedAt = DateTime.now();
+          if (entry.remainingAmount <= 0) entry.status = EntryStatus.completed;
+          await repository.save(entry);
+          await appToastService.show(
+            'Payment added',
+            type: AppToastType.success,
+          );
         case 'deletePayment':
           if (paymentId == null ||
               paymentId < 0 ||
@@ -303,19 +307,27 @@ class _AppShellState extends ConsumerState<AppShell> {
           }
       }
       entry = await repository.getById(entry.id);
-      return _nativeEntryDetailsResponse(entry, close: close);
+      return _nativeEntryDetailsResponse(
+        entry,
+        close: close,
+        actionSucceeded: action == 'addPayment' ? true : null,
+      );
     } catch (_) {
       await appToastService.show(
         'Something went wrong',
         type: AppToastType.error,
       );
-      return _nativeEntryDetailsResponse(entry);
+      return _nativeEntryDetailsResponse(
+        entry,
+        actionSucceeded: action == 'addPayment' ? false : null,
+      );
     }
   }
 
   Map<String, dynamic> _nativeEntryDetailsResponse(
     Entry? entry, {
     bool close = false,
+    bool? actionSucceeded,
   }) {
     if (entry == null)
       return {'schemaVersion': 1, 'close': close, 'entry': null};
@@ -326,6 +338,7 @@ class _AppShellState extends ConsumerState<AppShell> {
     return {
       'schemaVersion': 1,
       'close': close,
+      if (actionSucceeded != null) 'actionSucceeded': actionSucceeded,
       'entry': {
         'id': entry.id.toString(),
         'title': entry.title,

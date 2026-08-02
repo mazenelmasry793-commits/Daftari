@@ -6,6 +6,8 @@ struct NativeEntryDetailsView: View {
   @ObservedObject private var store: NativeEntryDetailsStore
   let onBack: () -> Void
   let onEdit: (NativeEntryDetailsSnapshot) -> Void
+  @State private var paymentSheetPresented = false
+  @State private var paymentSheetSaving = false
 
   init(
     bridge: NativeEntryDetailsBridge,
@@ -71,6 +73,21 @@ struct NativeEntryDetailsView: View {
       }
       .navigationBarTitleDisplayMode(.inline)
     }
+    .sheet(isPresented: $paymentSheetPresented) {
+      NativeEntryDetailsPaymentSheet(
+        isSaving: $paymentSheetSaving,
+        onSubmit: { payment in
+          bridge.perform(
+            action: .addPayment,
+            id: store.snapshot?.id ?? "",
+            payment: payment
+          ) { success in
+            paymentSheetSaving = false
+            if success { paymentSheetPresented = false }
+          }
+        }
+      )
+    }
   }
 
   @ViewBuilder
@@ -119,7 +136,7 @@ struct NativeEntryDetailsView: View {
           Spacer()
           if !snapshot.isDeleted {
             Button {
-              bridge.perform(action: .addPayment, id: snapshot.id)
+              paymentSheetPresented = true
             } label: {
               Label("Add Payment", systemImage: "plus")
             }
@@ -155,6 +172,56 @@ struct NativeEntryDetailsView: View {
       .padding(.bottom, 32)
     }
     .scrollIndicators(.hidden)
+  }
+}
+
+@available(iOS 26.0, *)
+private struct NativeEntryDetailsPaymentSheet: View {
+  @Environment(\.dismiss) private var dismiss
+  @Binding var isSaving: Bool
+  let onSubmit: (NativeEntryDetailsPaymentInput) -> Void
+  @State private var amountText = ""
+  @State private var paymentDate = Date()
+  @State private var note = ""
+
+  private var amount: Double? {
+    Double(amountText.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: ",", with: "."))
+  }
+
+  var body: some View {
+    NavigationStack {
+      Form {
+        Section {
+          TextField("Amount", text: $amountText)
+            .keyboardType(.decimalPad)
+          DatePicker("Date", selection: $paymentDate, displayedComponents: .date)
+          TextField("Note (Optional)", text: $note, axis: .vertical)
+            .lineLimit(2...4)
+        }
+      }
+      .navigationTitle("Add Payment")
+      .navigationBarTitleDisplayMode(.inline)
+      .toolbar {
+        ToolbarItem(placement: .cancellationAction) {
+          Button("Cancel") { dismiss() }
+            .disabled(isSaving)
+        }
+        ToolbarItem(placement: .confirmationAction) {
+          Button("Add Payment") {
+            guard let amount, amount > 0, !isSaving else { return }
+            isSaving = true
+            onSubmit(
+              NativeEntryDetailsPaymentInput(
+                amount: amount,
+                date: paymentDate,
+                note: note.trimmingCharacters(in: .whitespacesAndNewlines)
+              )
+            )
+          }
+          .disabled(amount == nil || amount! <= 0 || isSaving)
+        }
+      }
+    }
   }
 }
 

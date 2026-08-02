@@ -19,6 +19,7 @@ class NativeEntryDetailsChannel {
     String id,
     String action,
     int? paymentId,
+    Map<String, dynamic>? payment,
   )?
   onPerformAction;
 
@@ -34,10 +35,16 @@ class NativeEntryDetailsChannel {
             args['action'] is! String) {
           return null;
         }
+        final payment = <String, dynamic>{
+          if (args['amount'] is num) 'amount': args['amount'],
+          if (args['dateIso8601'] is String) 'dateIso8601': args['dateIso8601'],
+          if (args['note'] is String) 'note': args['note'],
+        };
         return onPerformAction?.call(
           args['id'] as String,
           args['action'] as String,
           args['paymentID'] is int ? args['paymentID'] as int : null,
+          payment.isEmpty ? null : payment,
         );
       default:
         throw MissingPluginException(

@@ -42,12 +42,19 @@ final class NativeEntryDetailsBridge {
   func perform(
     action: NativeEntryDetailsAction,
     id: String,
-    paymentID: Int? = nil
+    paymentID: Int? = nil,
+    payment: NativeEntryDetailsPaymentInput? = nil,
+    completion: ((Bool) -> Void)? = nil
   ) {
     guard !actionInFlight else { return }
     actionInFlight = true
     var arguments: [String: Any] = ["id": id, "action": action.rawValue]
     if let paymentID { arguments["paymentID"] = paymentID }
+    if let payment {
+      arguments["amount"] = payment.amount
+      arguments["dateIso8601"] = ISO8601DateFormatter().string(from: payment.date)
+      arguments["note"] = payment.note
+    }
     channel.invokeMethod(
       NativeChannelConstants.EntryDetailsMethod.performAction,
       arguments: arguments
@@ -56,12 +63,14 @@ final class NativeEntryDetailsBridge {
         guard let self else { return }
         guard let payload = result as? [String: Any] else {
           self.actionInFlight = false
+          completion?(false)
           self.onActionFinished?(id, false)
           return
         }
         self.store.apply(payload: payload)
         let close = payload["close"] as? Bool == true
         self.actionInFlight = false
+        completion?(payload["actionSucceeded"] as? Bool ?? !close)
         if close { self.onRequestClose?() }
         self.onActionFinished?(id, close)
       }
