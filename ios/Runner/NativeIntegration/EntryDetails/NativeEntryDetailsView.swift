@@ -30,7 +30,13 @@ struct NativeEntryDetailsView: View {
       .background(Color(uiColor: .systemBackground))
       .toolbar {
         ToolbarItem(placement: .topBarLeading) {
-          Button(action: onBack) { Image(systemName: "chevron.left") }
+          Button(action: onBack) {
+            Image(systemName: "chevron.left")
+              .frame(width: 48, height: 48)
+              .background(.thinMaterial, in: Circle())
+              .clipShape(Circle())
+              .contentShape(Circle())
+          }
             .accessibilityLabel("Back")
         }
         ToolbarItem(placement: .principal) {
@@ -46,12 +52,15 @@ struct NativeEntryDetailsView: View {
           }
         }
         ToolbarItem(placement: .topBarTrailing) {
-          if let snapshot = bridge.store.snapshot {
+          if let snapshot = store.snapshot {
             Menu {
               entryActions(snapshot)
             } label: {
               Image(systemName: "ellipsis")
-                .frame(width: 44, height: 44)
+                .frame(width: 48, height: 48)
+                .background(.thinMaterial, in: Circle())
+                .clipShape(Circle())
+                .contentShape(Circle())
             }
             .accessibilityLabel("Entry actions")
           }
@@ -189,8 +198,11 @@ private struct NativeEntryDetailsBalanceCard: View {
           .foregroundStyle(.white)
       }
       ProgressView(value: snapshot.progress)
+        .progressViewStyle(.linear)
         .tint(.white)
-        .scaleEffect(y: 1.6)
+        .frame(maxWidth: .infinity, minHeight: 8, maxHeight: 8)
+        .background(.white.opacity(0.28), in: Capsule())
+        .clipShape(Capsule())
     }
     .padding(20)
     .frame(maxWidth: .infinity, alignment: .leading)
@@ -267,7 +279,10 @@ private struct NativeEntryDetailsPayments: View {
               }
             } label: {
               Image(systemName: "ellipsis")
-                .frame(width: 44, height: 44)
+                .frame(width: 48, height: 48)
+                .background(.thinMaterial, in: Circle())
+                .clipShape(Circle())
+                .contentShape(Circle())
             }
             .accessibilityLabel("Payment actions")
           }

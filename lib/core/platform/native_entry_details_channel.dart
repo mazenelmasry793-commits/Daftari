@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 
 const _channelName = 'com.daftari/native_entry_details';
 
@@ -44,6 +45,9 @@ class NativeEntryDetailsChannel {
         );
     }
   }
+
+  @visibleForTesting
+  Future<dynamic> handleNativeCall(MethodCall call) => _handleNativeCall(call);
 
   String? _id(dynamic arguments) =>
       arguments is Map && arguments['id'] is String

@@ -3,7 +3,11 @@ import Flutter
 final class NativeEntryDetailsBridge {
   let store = NativeEntryDetailsStore()
   private let channel: FlutterMethodChannel
+  private var actionInFlight = false
+  private var currentID: String?
   var onRequestClose: (() -> Void)?
+  var onActionStarted: ((NativeEntryDetailsAction, String) -> Void)?
+  var onActionFinished: ((String, Bool) -> Void)?
 
   init(binaryMessenger: FlutterBinaryMessenger) {
     channel = FlutterMethodChannel(
@@ -26,6 +30,7 @@ final class NativeEntryDetailsBridge {
   }
 
   func load(id: String) {
+    currentID = id
     store.beginLoading()
     channel.invokeMethod(
       NativeChannelConstants.EntryDetailsMethod.loadEntry,
@@ -40,6 +45,9 @@ final class NativeEntryDetailsBridge {
     id: String,
     paymentID: Int? = nil
   ) {
+    guard !actionInFlight else { return }
+    actionInFlight = true
+    onActionStarted?(action, id)
     var arguments: [String: Any] = ["id": id, "action": action.rawValue]
     if let paymentID { arguments["paymentID"] = paymentID }
     channel.invokeMethod(
@@ -47,9 +55,17 @@ final class NativeEntryDetailsBridge {
       arguments: arguments
     ) { [weak self] result in
       DispatchQueue.main.async {
-        guard let payload = result as? [String: Any] else { return }
-        self?.store.apply(payload: payload)
-        if payload["close"] as? Bool == true { self?.onRequestClose?() }
+        guard let self else { return }
+        guard let payload = result as? [String: Any] else {
+          self.actionInFlight = false
+          self.onActionFinished?(id, false)
+          return
+        }
+        self.store.apply(payload: payload)
+        let close = payload["close"] as? Bool == true
+        self.actionInFlight = false
+        if close { self.onRequestClose?() }
+        self.onActionFinished?(id, close)
       }
     }
   }

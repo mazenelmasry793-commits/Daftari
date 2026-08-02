@@ -199,6 +199,12 @@ final class NativeNavigationCoordinator {
       let entryDetailsBridge = NativeEntryDetailsBridge(
         binaryMessenger: rootViewController.binaryMessenger
       )
+      entryDetailsBridge.onActionStarted = { [weak self] _, _ in
+        self?.prepareNativeDetailsAction()
+      }
+      entryDetailsBridge.onActionFinished = { [weak self] id, close in
+        self?.finishNativeDetailsAction(id: id, close: close)
+      }
       let entryDetailsHost = NativeEntryDetailsHostController(
         bridge: entryDetailsBridge,
         onBack: { [weak self] in self?.closeNativeDetails() }
@@ -383,6 +389,30 @@ final class NativeNavigationCoordinator {
     navigationVisible = true
     nativeEntryDetailsHost?.view.isHidden = true
     (systemTabBarController as? DaftariSystemTabBarController)?.setNavigationVisible(true, animated: true)
+    updateNativeSurfaceVisibility(animated: true)
+  }
+
+  @available(iOS 26.0, *)
+  private func prepareNativeDetailsAction() {
+    guard nativeDetailVisible else { return }
+    nativeDetailVisible = false
+    nativeEntryDetailsHost?.view.isHidden = true
+    updateNativeSurfaceVisibility(animated: true)
+  }
+
+  @available(iOS 26.0, *)
+  private func finishNativeDetailsAction(id: String, close: Bool) {
+    guard !close else {
+      navigationVisible = true
+      return
+    }
+    guard !flutterDetailVisible,
+          let detailsBridge = nativeEntryDetailsBridge,
+          let detailsHost = nativeEntryDetailsHost else { return }
+    nativeDetailVisible = true
+    detailsBridge.load(id: id)
+    detailsHost.view.isHidden = false
+    rootViewController.view.bringSubviewToFront(detailsHost.view)
     updateNativeSurfaceVisibility(animated: true)
   }
 

@@ -1,4 +1,5 @@
 import Combine
+import Foundation
 
 final class NativeEntryDetailsStore: ObservableObject {
   @Published private(set) var snapshot: NativeEntryDetailsSnapshot?
@@ -17,17 +18,21 @@ final class NativeEntryDetailsStore: ObservableObject {
           let title = rawEntry["title"] as? String,
           let type = rawEntry["type"] as? String,
           let status = rawEntry["status"] as? String,
-          let dateText = rawEntry["dateText"] as? String,
+          let fallbackDateText = rawEntry["dateText"] as? String,
           let originalText = rawEntry["originalText"] as? String,
           let paidText = rawEntry["paidText"] as? String,
           let remainingText = rawEntry["remainingText"] as? String,
-          let progress = rawEntry["progress"] as? Double,
           let rawPayments = rawEntry["payments"] as? [[String: Any]] else {
       isLoading = false
       errorMessage = "Entry details unavailable"
       return
     }
 
+    let dateText = formattedDate(
+      iso8601: rawEntry["dateIso8601"] as? String,
+      fallback: fallbackDateText
+    )
+    let progress = min(max((rawEntry["progress"] as? NSNumber)?.doubleValue ?? 0, 0), 1)
     let payments = rawPayments.compactMap { raw -> NativeEntryDetailsPayment? in
       guard let id = raw["id"] as? Int,
             let amountText = raw["amountText"] as? String,
@@ -50,10 +55,22 @@ final class NativeEntryDetailsStore: ObservableObject {
       originalText: originalText,
       paidText: paidText,
       remainingText: remainingText,
-      progress: min(max(progress, 0), 1),
+      progress: progress,
       payments: payments
     )
     isLoading = false
     errorMessage = nil
+  }
+
+  private func formattedDate(iso8601: String?, fallback: String) -> String {
+    guard let iso8601,
+          let date = ISO8601DateFormatter().date(from: iso8601) else {
+      return fallback
+    }
+    let formatter = DateFormatter()
+    formatter.dateStyle = .medium
+    formatter.timeStyle = .none
+    formatter.locale = .current
+    return formatter.string(from: date)
   }
 }

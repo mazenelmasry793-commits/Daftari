@@ -331,6 +331,9 @@ class _AppShellState extends ConsumerState<AppShell> {
         'dateText': AppFormatters.date.format(
           entry.debtDate ?? entry.createdAt,
         ),
+        'dateIso8601': (entry.debtDate ?? entry.createdAt)
+            .toUtc()
+            .toIso8601String(),
         'note': entry.note ?? '',
         'originalText': AppFormatters.moneyValue(original),
         'paidText': AppFormatters.moneyValue(paid),
