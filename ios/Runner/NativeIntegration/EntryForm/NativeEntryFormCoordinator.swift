@@ -3,6 +3,10 @@ import SwiftUI
 import UIKit
 
 final class NativeEntryFormCoordinator {
+  // Shared compact height keeps debt and Scratchpad forms aligned while
+  // leaving the existing field spacing and keyboard detent behavior intact.
+  private static let compactEntryFormHeight: CGFloat = 510
+
   private weak var presentedNavigationController: UINavigationController?
   private weak var presentedViewController: UIViewController?
   private var presentationDelegate: PresentationDelegate?
@@ -78,7 +82,7 @@ final class NativeEntryFormCoordinator {
           let compactDetentIdentifier = UISheetPresentationController.Detent.Identifier("nativeEntryFormCompact")
           sheet.detents = [
             .custom(identifier: compactDetentIdentifier) { context in
-              context.maximumDetentValue * 0.8
+              min(Self.compactEntryFormHeight, context.maximumDetentValue)
             },
             .large(),
           ]
@@ -157,7 +161,7 @@ final class NativeEntryFormCoordinator {
       if #available(iOS 16.0, *) {
         sheet.detents = [
           .custom(identifier: .init("nativeDebtFormCompact")) { context in
-            min(520, context.maximumDetentValue)
+            min(Self.compactEntryFormHeight, context.maximumDetentValue)
           },
         ]
       } else {
@@ -215,7 +219,7 @@ final class NativeEntryFormCoordinator {
       if #available(iOS 16.0, *) {
         sheet.detents = [
           .custom(identifier: .init("nativeScratchpadCompact")) { context in
-            min(520, context.maximumDetentValue)
+            min(Self.compactEntryFormHeight, context.maximumDetentValue)
           },
         ]
       } else {
