@@ -31,13 +31,13 @@ struct NativeEntryDetailsView: View {
       .toolbar {
         ToolbarItem(placement: .topBarLeading) {
           Button(action: onBack) {
-            Image(systemName: "chevron.left")
-              .frame(width: 48, height: 48)
-              .background(.thinMaterial, in: Circle())
-              .clipShape(Circle())
-              .contentShape(Circle())
+            Label("Back", systemImage: "chevron.left")
+              .labelStyle(.iconOnly)
           }
-            .accessibilityLabel("Back")
+          .buttonStyle(.glass)
+          .buttonBorderShape(.circle)
+          .controlSize(.large)
+          .accessibilityLabel("Back")
         }
         ToolbarItem(placement: .principal) {
           if let snapshot = store.snapshot {
@@ -56,13 +56,12 @@ struct NativeEntryDetailsView: View {
             Menu {
               entryActions(snapshot)
             } label: {
-              Image(systemName: "ellipsis")
-                .frame(width: 56, height: 56)
-                .background(.thinMaterial, in: Circle())
-                .clipShape(Circle())
-                .contentShape(Circle())
+              Label("Entry actions", systemImage: "ellipsis")
+                .labelStyle(.iconOnly)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.glass)
+            .buttonBorderShape(.circle)
+            .controlSize(.large)
             .accessibilityLabel("Entry actions")
           }
         }
