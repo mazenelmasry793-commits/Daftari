@@ -213,6 +213,9 @@ final class NativeNavigationCoordinator {
       let entryDetailsBridge = NativeEntryDetailsBridge(
         binaryMessenger: rootViewController.binaryMessenger
       )
+      entryDetailsBridge.onRequestClose = { [weak self] in
+        self?.closeNativeDetails()
+      }
       entryDetailsBridge.onActionFinished = { [weak self] id, close in
         self?.finishNativeDetailsAction(id: id, close: close)
       }
@@ -238,6 +241,9 @@ final class NativeNavigationCoordinator {
       let noteDetailsBridge = NativeNoteDetailsBridge(
         binaryMessenger: rootViewController.binaryMessenger
       )
+      noteDetailsBridge.onRequestClose = { [weak self] in
+        self?.closeNativeNoteDetails()
+      }
       let noteDetailsHost = NativeNoteDetailsHostController(
         bridge: noteDetailsBridge,
         onBack: { [weak self] in self?.closeNativeNoteDetails() }
@@ -775,7 +781,7 @@ final class NativeNavigationCoordinator {
   @available(iOS 26.0, *)
   private func finishNativeDetailsAction(id: String, close: Bool) {
     guard !close else {
-      navigationVisible = true
+      closeNativeDetails()
       return
     }
     guard !flutterDetailVisible,
