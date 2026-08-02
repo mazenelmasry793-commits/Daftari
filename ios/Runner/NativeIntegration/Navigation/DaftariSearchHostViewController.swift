@@ -4,7 +4,7 @@ import SwiftUI
 @available(iOS 26.0, *)
 final class DaftariSearchHostViewController: UIViewController, UISearchResultsUpdating, UISearchControllerDelegate {
   var onSearchBegan: (() -> Void)?
-  var onSearchEnded: (() -> Void)?
+  var onSearchDismissalBegan: (() -> Void)?
 
   private let onQueryChanged: (String) -> Void
   private let onDismissed: () -> Void
@@ -86,6 +86,6 @@ final class DaftariSearchHostViewController: UIViewController, UISearchResultsUp
   }
 
   func willDismissSearchController(_ searchController: UISearchController) {
-    onSearchEnded?()
+    onSearchDismissalBegan?()
   }
 }

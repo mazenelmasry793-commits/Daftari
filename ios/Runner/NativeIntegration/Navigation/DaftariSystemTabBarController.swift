@@ -86,7 +86,7 @@ final class DaftariSystemTabBarController: NSObject, UITabBarControllerDelegate 
     host.onSearchBegan = { [weak self] in
       self?.setSearchActive(true)
     }
-    host.onSearchEnded = { [weak self] in
+    host.onSearchDismissalBegan = { [weak self] in
       self?.setSearchActive(false)
     }
   }
@@ -116,6 +116,9 @@ final class DaftariSystemTabBarController: NSObject, UITabBarControllerDelegate 
 
   func activateSearchTab() {
     guard viewController.selectedTab !== searchTab else { return }
+    // A programmatic content-tab selection from an earlier lifecycle must not
+    // consume the next real Search callback after the controller is reused.
+    pendingProgrammaticTabIndex = nil
     searchHost.prepareForActivation()
     viewController.selectedTab = searchTab
   }

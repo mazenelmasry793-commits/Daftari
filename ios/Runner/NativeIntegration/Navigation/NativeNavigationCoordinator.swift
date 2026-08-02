@@ -559,11 +559,13 @@ final class NativeNavigationCoordinator {
   @available(iOS 26.0, *)
   private func handleNativeTabSelection(_ index: Int, channel: FlutterMethodChannel?) {
     guard (0...3).contains(index) else { return }
+    // UISearchTab can emit the previously selected tab before its search
+    // controller has finished dismissing. Search lifecycle reconciliation is
+    // owned by didDismissSearchController, so this callback must not close or
+    // otherwise mutate Search state during that transition.
+    guard searchState == .inactive else { return }
     lastContentTabIndex = index
     selectedTabIndex = index
-    if searchState != .inactive {
-      searchState = .inactive
-    }
     updateNativeSurfaceVisibility(animated: false)
     channel?.invokeMethod(
       NativeChannelConstants.NavigationMethod.nativeTabSelected,
