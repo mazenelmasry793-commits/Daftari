@@ -129,9 +129,7 @@ struct NativeEntryDetailsView: View {
         }
 
         if snapshot.payments.isEmpty {
-          NativeEntryDetailsEmptyPayments {
-            bridge.perform(action: .addPayment, id: snapshot.id)
-          }
+          NativeEntryDetailsEmptyPayments()
           .opacity(snapshot.isDeleted ? 0.65 : 1)
           .allowsHitTesting(!snapshot.isDeleted)
         } else {
@@ -232,8 +230,6 @@ private struct NativeEntryDetailsBalanceCard: View {
 
 @available(iOS 26.0, *)
 private struct NativeEntryDetailsEmptyPayments: View {
-  let onAdd: () -> Void
-
   var body: some View {
     VStack(spacing: 10) {
       Image(systemName: "wallet.pass")
@@ -245,10 +241,6 @@ private struct NativeEntryDetailsEmptyPayments: View {
       Text("Add the first payment to track the remaining balance.")
         .foregroundStyle(.secondary)
         .multilineTextAlignment(.center)
-      Button("Add Payment", action: onAdd)
-        .buttonStyle(.borderedProminent)
-        .tint(.indigo)
-        .padding(.top, 6)
     }
     .frame(maxWidth: .infinity)
     .padding(28)

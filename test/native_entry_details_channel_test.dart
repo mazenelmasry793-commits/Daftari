@@ -77,4 +77,30 @@ void main() {
       ['42', 'deletePayment', 3],
     ]);
   });
+
+  test(
+    'top Add Payment action opens the existing sheet for the current entry',
+    () async {
+      const channel = MethodChannel('test.native.entry_details.add_payment');
+      final details = NativeEntryDetailsChannel(
+        channel: channel,
+        isIos: () => true,
+      );
+      String? receivedID;
+      String? receivedAction;
+      details.onPerformAction = (id, action, paymentID) async {
+        receivedID = id;
+        receivedAction = action;
+        expect(paymentID, isNull);
+        return <String, dynamic>{};
+      };
+
+      await details.handleNativeCall(
+        const MethodCall('performAction', {'id': '42', 'action': 'addPayment'}),
+      );
+
+      expect(receivedID, '42');
+      expect(receivedAction, 'addPayment');
+    },
+  );
 }
