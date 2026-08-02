@@ -190,21 +190,27 @@ private struct NativeEntryDetailsPaymentSheet: View {
 
   var body: some View {
     NavigationStack {
-      Form {
-        Section {
-          TextField("Amount", text: $amountText)
-            .keyboardType(.decimalPad)
-          DatePicker("Date", selection: $paymentDate, displayedComponents: .date)
-          TextField("Note (Optional)", text: $note, axis: .vertical)
-            .lineLimit(2...4)
-        }
+      VStack(spacing: 14) {
+        TextField("Amount", text: $amountText)
+          .keyboardType(.decimalPad)
+          .textFieldStyle(.roundedBorder)
+        DatePicker("Date", selection: $paymentDate, displayedComponents: .date)
+          .padding(.horizontal, 4)
+        TextField("Note (Optional)", text: $note, axis: .vertical)
+          .lineLimit(1...3)
+          .textFieldStyle(.roundedBorder)
       }
+      .padding(20)
+      .frame(maxWidth: .infinity)
+      .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+      .padding(.horizontal, 16)
       .navigationTitle("Add Payment")
       .navigationBarTitleDisplayMode(.inline)
       .toolbar {
-        ToolbarItem(placement: .cancellationAction) {
+          ToolbarItem(placement: .cancellationAction) {
           Button("Cancel") { dismiss() }
             .disabled(isSaving)
+            .buttonStyle(.glass)
         }
         ToolbarItem(placement: .confirmationAction) {
           Button("Add Payment") {
@@ -219,9 +225,13 @@ private struct NativeEntryDetailsPaymentSheet: View {
             )
           }
           .disabled(amount == nil || amount! <= 0 || isSaving)
+          .buttonStyle(.glass)
         }
       }
     }
+    .presentationDetents([.height(320)])
+    .presentationBackground(.thinMaterial)
+    .presentationDragIndicator(.visible)
   }
 }
 
