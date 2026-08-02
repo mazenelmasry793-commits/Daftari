@@ -31,16 +31,12 @@ struct NativeEntryDetailsView: View {
       .toolbar {
         ToolbarItem(placement: .topBarLeading) {
           Button(action: onBack) {
-            ZStack {
-              Circle().fill(.thinMaterial)
-              Image(systemName: "chevron.left")
-            }
+            Image(systemName: "chevron.left")
               .frame(width: 48, height: 48)
+              .background(.thinMaterial, in: Circle())
               .clipShape(Circle())
               .contentShape(Circle())
-              .fixedSize()
           }
-            .buttonStyle(.plain)
             .accessibilityLabel("Back")
         }
         ToolbarItem(placement: .principal) {
@@ -60,16 +56,13 @@ struct NativeEntryDetailsView: View {
             Menu {
               entryActions(snapshot)
             } label: {
-              ZStack {
-                Circle().fill(.thinMaterial)
-                Image(systemName: "ellipsis")
-              }
-                .frame(width: 48, height: 48)
+              Image(systemName: "ellipsis")
+                .frame(width: 56, height: 56)
+                .background(.thinMaterial, in: Circle())
                 .clipShape(Circle())
                 .contentShape(Circle())
-                .fixedSize()
             }
-            .menuStyle(.automatic)
+            .buttonStyle(.plain)
             .accessibilityLabel("Entry actions")
           }
         }
