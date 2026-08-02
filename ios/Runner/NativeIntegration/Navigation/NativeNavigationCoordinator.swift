@@ -231,7 +231,7 @@ final class NativeNavigationCoordinator {
         entryDetailsHost.view.bottomAnchor.constraint(equalTo: rootViewController.view.bottomAnchor),
       ])
       entryDetailsHost.didMove(toParent: rootViewController)
-      entryDetailsHost.view.isHidden = true
+      setHost(entryDetailsHost, visible: false)
       self.nativeEntryDetailsBridge = entryDetailsBridge
       self.nativeEntryDetailsHost = entryDetailsHost
 
@@ -252,7 +252,7 @@ final class NativeNavigationCoordinator {
         noteDetailsHost.view.bottomAnchor.constraint(equalTo: rootViewController.view.bottomAnchor),
       ])
       noteDetailsHost.didMove(toParent: rootViewController)
-      noteDetailsHost.view.isHidden = true
+      setHost(noteDetailsHost, visible: false)
       self.nativeNoteDetailsBridge = noteDetailsBridge
       self.nativeNoteDetailsHost = noteDetailsHost
 
@@ -274,7 +274,7 @@ final class NativeNavigationCoordinator {
         settingsHost.view.bottomAnchor.constraint(equalTo: rootViewController.view.bottomAnchor),
       ])
       settingsHost.didMove(toParent: rootViewController)
-      settingsHost.view.isHidden = true
+      setHost(settingsHost, visible: false)
       self.nativeSettingsHost = settingsHost
 
       let trashHost = NativeTrashHostController(
@@ -304,7 +304,7 @@ final class NativeNavigationCoordinator {
         trashHost.view.bottomAnchor.constraint(equalTo: rootViewController.view.bottomAnchor),
       ])
       trashHost.didMove(toParent: rootViewController)
-      trashHost.view.isHidden = true
+      setHost(trashHost, visible: false)
       self.nativeTrashHost = trashHost
       updateNativeSurfaceVisibility(animated: false)
     } else {
@@ -441,7 +441,11 @@ final class NativeNavigationCoordinator {
       let shouldShowLegacyHeader =
         false
 
-      nativeDashboardHost?.view.isHidden = !shouldShowNativeDashboard
+      setHost(
+        nativeDashboardHost,
+        visible: shouldShowNativeDashboard,
+        interactive: shouldShowNativeDashboard && !searchModeActive
+      )
       for (type, host) in nativeEntryHosts {
         let tabIndex: Int
         switch type {
@@ -449,7 +453,7 @@ final class NativeNavigationCoordinator {
         case .owedByMe: tabIndex = 2
         case .scratchpad: tabIndex = 3
         }
-        host.view.isHidden = !(
+        let shouldShowEntryHost = (
           nativeDashboardInstalled &&
           navigationVisible &&
           visibleContentTabIndex == tabIndex &&
@@ -459,11 +463,16 @@ final class NativeNavigationCoordinator {
           !nativeSettingsVisible &&
           !nativeTrashVisible
         )
+        setHost(
+          host,
+          visible: shouldShowEntryHost,
+          interactive: shouldShowEntryHost && !searchModeActive
+        )
       }
-      nativeEntryDetailsHost?.view.isHidden = !nativeDetailVisible
-      nativeNoteDetailsHost?.view.isHidden = !nativeNoteDetailVisible
-      nativeSettingsHost?.view.isHidden = !nativeSettingsVisible
-      nativeTrashHost?.view.isHidden = !nativeTrashVisible
+      setHost(nativeEntryDetailsHost, visible: nativeDetailVisible, interactive: nativeDetailVisible)
+      setHost(nativeNoteDetailsHost, visible: nativeNoteDetailVisible, interactive: nativeNoteDetailVisible)
+      setHost(nativeSettingsHost, visible: nativeSettingsVisible, interactive: nativeSettingsVisible)
+      setHost(nativeTrashHost, visible: nativeTrashVisible, interactive: nativeTrashVisible)
       (navigationBarHost as? DaftariNavigationBarHostViewController)?.setVisible(
         shouldShowLegacyHeader,
         animated: animated
@@ -487,6 +496,17 @@ final class NativeNavigationCoordinator {
         animated: animated
       )
     }
+  }
+
+  private func setHost(
+    _ host: UIViewController?,
+    visible: Bool,
+    interactive: Bool = true
+  ) {
+    guard let view = host?.view else { return }
+    view.isHidden = !visible
+    view.alpha = visible ? 1 : 0
+    view.isUserInteractionEnabled = visible && interactive
   }
 
   @available(iOS 26.0, *)
@@ -556,7 +576,7 @@ final class NativeNavigationCoordinator {
     nativeDetailVisible = true
     navigationVisible = false
     (systemTabBarController as? DaftariSystemTabBarController)?.setNavigationVisible(false, animated: true)
-    detailsHost.view.isHidden = false
+    setHost(detailsHost, visible: true, interactive: true)
     rootViewController.view.bringSubviewToFront(detailsHost.view)
     detailsBridge.load(id: id)
     updateNativeSurfaceVisibility(animated: true)
@@ -570,7 +590,7 @@ final class NativeNavigationCoordinator {
     nativeNoteDetailVisible = true
     navigationVisible = false
     (systemTabBarController as? DaftariSystemTabBarController)?.setNavigationVisible(false, animated: true)
-    detailsHost.view.isHidden = false
+    setHost(detailsHost, visible: true, interactive: true)
     rootViewController.view.bringSubviewToFront(detailsHost.view)
     detailsBridge.load(id: id)
     updateNativeSurfaceVisibility(animated: true)
@@ -583,7 +603,7 @@ final class NativeNavigationCoordinator {
     nativeSettingsVisible = true
     navigationVisible = false
     (systemTabBarController as? DaftariSystemTabBarController)?.setNavigationVisible(false, animated: true)
-    settingsHost.view.isHidden = false
+    setHost(settingsHost, visible: true, interactive: true)
     rootViewController.view.bringSubviewToFront(settingsHost.view)
     updateNativeSurfaceVisibility(animated: true)
   }
@@ -593,7 +613,7 @@ final class NativeNavigationCoordinator {
     guard nativeSettingsVisible else { return }
     nativeSettingsVisible = false
     navigationVisible = true
-    nativeSettingsHost?.view.isHidden = true
+    setHost(nativeSettingsHost, visible: false)
     (systemTabBarController as? DaftariSystemTabBarController)?.setNavigationVisible(true, animated: true)
     updateNativeSurfaceVisibility(animated: true)
   }
@@ -605,7 +625,7 @@ final class NativeNavigationCoordinator {
     nativeSettingsVisible = true
     navigationVisible = false
     (systemTabBarController as? DaftariSystemTabBarController)?.setNavigationVisible(false, animated: true)
-    settingsHost.view.isHidden = false
+    setHost(settingsHost, visible: true, interactive: true)
     rootViewController.view.bringSubviewToFront(settingsHost.view)
     updateNativeSurfaceVisibility(animated: true)
   }
@@ -616,7 +636,7 @@ final class NativeNavigationCoordinator {
           let trashHost = nativeTrashHost else { return }
     nativeSettingsVisible = false
     nativeTrashVisible = true
-    trashHost.view.isHidden = false
+    setHost(trashHost, visible: true, interactive: true)
     rootViewController.view.bringSubviewToFront(trashHost.view)
     updateNativeSurfaceVisibility(animated: true)
     channel?.invokeMethod("nativeTrashLoad", arguments: nil) { [weak self] response in
@@ -633,7 +653,7 @@ final class NativeNavigationCoordinator {
   private func closeNativeTrash() {
     guard nativeTrashVisible else { return }
     nativeTrashVisible = false
-    nativeTrashHost?.view.isHidden = true
+    setHost(nativeTrashHost, visible: false)
     restoreNativeSettings()
   }
 
@@ -659,7 +679,7 @@ final class NativeNavigationCoordinator {
   private func openFlutterTrash() {
     guard nativeSettingsVisible else { return }
     nativeSettingsVisible = false
-    nativeSettingsHost?.view.isHidden = true
+    setHost(nativeSettingsHost, visible: false)
     channel?.invokeMethod("nativeSettingsOpenTrash", arguments: nil)
   }
 
@@ -737,7 +757,7 @@ final class NativeNavigationCoordinator {
     guard nativeDetailVisible else { return }
     nativeDetailVisible = false
     navigationVisible = true
-    nativeEntryDetailsHost?.view.isHidden = true
+    setHost(nativeEntryDetailsHost, visible: false)
     (systemTabBarController as? DaftariSystemTabBarController)?.setNavigationVisible(true, animated: true)
     updateNativeSurfaceVisibility(animated: true)
   }
@@ -747,7 +767,7 @@ final class NativeNavigationCoordinator {
     guard nativeNoteDetailVisible else { return }
     nativeNoteDetailVisible = false
     navigationVisible = true
-    nativeNoteDetailsHost?.view.isHidden = true
+    setHost(nativeNoteDetailsHost, visible: false)
     (systemTabBarController as? DaftariSystemTabBarController)?.setNavigationVisible(true, animated: true)
     updateNativeSurfaceVisibility(animated: true)
   }
@@ -763,7 +783,7 @@ final class NativeNavigationCoordinator {
           let detailsHost = nativeEntryDetailsHost else { return }
     nativeDetailVisible = true
     detailsBridge.load(id: id)
-    detailsHost.view.isHidden = false
+    setHost(detailsHost, visible: true, interactive: true)
     rootViewController.view.bringSubviewToFront(detailsHost.view)
     updateNativeSurfaceVisibility(animated: true)
   }

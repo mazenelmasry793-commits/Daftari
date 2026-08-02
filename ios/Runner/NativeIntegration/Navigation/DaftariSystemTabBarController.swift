@@ -94,7 +94,10 @@ final class DaftariSystemTabBarController: NSObject, UITabBarControllerDelegate 
   func setNavigationVisible(_ visible: Bool, animated: Bool) {
     let update = {
       self.viewController.setTabBarHidden(!visible, animated: false)
-      self.viewController.view.isUserInteractionEnabled = visible
+      // Keep the full-screen passthrough container interactive. It must be
+      // able to return nil outside the tab bar so Flutter/native hosts below
+      // remain tappable.
+      self.viewController.tabBar.isUserInteractionEnabled = visible
     }
     guard animated, !UIAccessibility.isReduceMotionEnabled else {
       update()
@@ -179,9 +182,13 @@ private final class DaftariTabBarPassthroughView: UIView {
   weak var interactiveView: UIView?
 
   override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
-    guard let interactiveView else { return nil }
+    guard !isHidden, alpha > 0.01, isUserInteractionEnabled,
+          let interactiveView,
+          !interactiveView.isHidden,
+          interactiveView.alpha > 0.01,
+          interactiveView.isUserInteractionEnabled else { return nil }
     let tabBarPoint = convert(point, to: interactiveView)
     guard interactiveView.point(inside: tabBarPoint, with: event) else { return nil }
-    return super.hitTest(point, with: event)
+    return interactiveView.hitTest(tabBarPoint, with: event)
   }
 }

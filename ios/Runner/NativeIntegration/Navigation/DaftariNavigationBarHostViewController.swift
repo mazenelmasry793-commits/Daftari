@@ -69,6 +69,8 @@ final class DaftariNavigationBarHostViewController: UIViewController {
     isVisible = visible
     let update = {
       self.view.isHidden = !visible
+      self.view.alpha = visible ? 1 : 0
+      self.view.isUserInteractionEnabled = visible
       self.headerViewController.navigationItem.rightBarButtonItems = visible
         ? [self.settingsItem, self.addItem]
         : nil

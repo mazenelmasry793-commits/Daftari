@@ -353,7 +353,11 @@ final class NativeFloatingNavigationView: UIView, UITabBarDelegate {
 
   private func updateVisibility(animated: Bool) {
     let visible = wantsVisible && (!keyboardVisible || searchState != .normal)
-    isUserInteractionEnabled = visible
+    // This is a full-screen overlay. Keep its container enabled so the
+    // point-inside guard can pass taps through when the navigation row is
+    // hidden; disabling the container can leave the underlying shell in a
+    // stale interaction state after a transition.
+    isUserInteractionEnabled = true
     let changes = {
       self.alpha = visible ? 1 : 0
       self.isHidden = !visible
