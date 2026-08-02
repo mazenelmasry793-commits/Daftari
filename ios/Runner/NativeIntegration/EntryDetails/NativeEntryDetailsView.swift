@@ -37,6 +37,7 @@ struct NativeEntryDetailsView: View {
           .buttonStyle(.glass)
           .buttonBorderShape(.circle)
           .controlSize(.large)
+          .frame(width: 56, height: 56)
           .accessibilityLabel("Back")
         }
         ToolbarItem(placement: .principal) {
@@ -62,6 +63,7 @@ struct NativeEntryDetailsView: View {
             .buttonStyle(.glass)
             .buttonBorderShape(.circle)
             .controlSize(.large)
+            .frame(width: 56, height: 56)
             .accessibilityLabel("Entry actions")
           }
         }
