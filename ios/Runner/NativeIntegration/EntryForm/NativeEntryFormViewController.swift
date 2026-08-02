@@ -65,7 +65,7 @@ final class NativeEntryFormViewController: UIViewController, UITextFieldDelegate
 
     scrollView.translatesAutoresizingMaskIntoConstraints = false
     contentStack.axis = .vertical
-    contentStack.spacing = 14
+    contentStack.spacing = 10
     contentStack.translatesAutoresizingMaskIntoConstraints = false
     effectView.contentView.addSubview(scrollView)
     scrollView.addSubview(contentStack)
@@ -80,6 +80,18 @@ final class NativeEntryFormViewController: UIViewController, UITextFieldDelegate
     if let amount = initialValues?.amount { amountField.text = String(amount) }
     amountField.delegate = self
     contentStack.addArrangedSubview(fieldContainer(label: entryType.amountPlaceholder, field: amountField))
+
+    contentStack.addArrangedSubview(formLabel("Date"))
+    datePicker.datePickerMode = .date
+    datePicker.date = initialValues?.debtDate ?? Date()
+    datePicker.minimumDate = Calendar.current.date(from: DateComponents(year: 2000, month: 1, day: 1))
+    datePicker.maximumDate = Calendar.current.date(from: DateComponents(year: 2100, month: 12, day: 31))
+    if #available(iOS 13.4, *) {
+      datePicker.preferredDatePickerStyle = .compact
+    }
+    datePicker.translatesAutoresizingMaskIntoConstraints = false
+    datePicker.addTarget(self, action: #selector(dateChanged), for: .valueChanged)
+    contentStack.addArrangedSubview(datePicker)
 
     let noteLabel = formLabel("Note")
     contentStack.addArrangedSubview(noteLabel)
@@ -102,18 +114,6 @@ final class NativeEntryFormViewController: UIViewController, UITextFieldDelegate
       notePlaceholder.trailingAnchor.constraint(lessThanOrEqualTo: noteView.trailingAnchor, constant: -10),
     ])
     contentStack.addArrangedSubview(noteView)
-
-    contentStack.addArrangedSubview(formLabel("Date"))
-    datePicker.datePickerMode = .date
-    datePicker.date = initialValues?.debtDate ?? Date()
-    datePicker.minimumDate = Calendar.current.date(from: DateComponents(year: 2000, month: 1, day: 1))
-    datePicker.maximumDate = Calendar.current.date(from: DateComponents(year: 2100, month: 12, day: 31))
-    if #available(iOS 13.4, *) {
-      datePicker.preferredDatePickerStyle = .compact
-    }
-    datePicker.translatesAutoresizingMaskIntoConstraints = false
-    datePicker.addTarget(self, action: #selector(dateChanged), for: .valueChanged)
-    contentStack.addArrangedSubview(datePicker)
 
     if #available(iOS 15.0, *) {
       var configuration = UIButton.Configuration.filled()
@@ -146,7 +146,7 @@ final class NativeEntryFormViewController: UIViewController, UITextFieldDelegate
       contentStack.topAnchor.constraint(equalTo: scrollView.contentLayoutGuide.topAnchor, constant: 16),
       contentStack.leadingAnchor.constraint(equalTo: scrollView.frameLayoutGuide.leadingAnchor, constant: 20),
       contentStack.trailingAnchor.constraint(equalTo: scrollView.frameLayoutGuide.trailingAnchor, constant: -20),
-      contentStack.bottomAnchor.constraint(equalTo: scrollView.contentLayoutGuide.bottomAnchor, constant: -24),
+      contentStack.bottomAnchor.constraint(equalTo: scrollView.contentLayoutGuide.bottomAnchor, constant: -12),
     ])
   }
 

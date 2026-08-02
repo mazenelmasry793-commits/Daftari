@@ -23,6 +23,7 @@ final class DaftariSystemTabBarController: NSObject, UITabBarControllerDelegate 
   private let searchTab: UISearchTab
   private var tabsByIdentifier: [String: Int] = [:]
   private var pendingProgrammaticTabIndex: Int?
+  private var searchActivationInProgress = false
 
   init(
     onTabSelected: @escaping (Int) -> Void,
@@ -120,6 +121,8 @@ final class DaftariSystemTabBarController: NSObject, UITabBarControllerDelegate 
     // consume the next real Search callback after the controller is reused.
     pendingProgrammaticTabIndex = nil
     searchHost.prepareForActivation()
+    searchActivationInProgress = true
+    onSearchActivated()
     viewController.selectedTab = searchTab
   }
 
@@ -149,8 +152,13 @@ final class DaftariSystemTabBarController: NSObject, UITabBarControllerDelegate 
       pendingProgrammaticTabIndex = nil
     }
     if selectedTab.identifier == searchTab.identifier {
-      onSearchActivated()
+      if searchActivationInProgress {
+        searchActivationInProgress = false
+      } else {
+        onSearchActivated()
+      }
     } else {
+      searchActivationInProgress = false
       onTabSelected(index)
     }
   }

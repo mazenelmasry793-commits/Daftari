@@ -525,8 +525,12 @@ final class NativeNavigationCoordinator {
   @available(iOS 26.0, *)
   private func applyNativeSearchModeChange(_ active: Bool) {
     if active {
-      guard searchState == .presenting else { return }
-      searchState = .active
+      switch searchState {
+      case .presenting, .active, .inactive:
+        searchState = .active
+      case .dismissing:
+        return
+      }
       if let systemTabs = systemTabBarController as? DaftariSystemTabBarController {
         // The system search host is already being presented by UIKit at this
         // point. Keep it above Flutter before changing the underlying surfaces.
@@ -538,8 +542,12 @@ final class NativeNavigationCoordinator {
       return
     }
 
-    guard searchState == .active else { return }
-    searchState = .dismissing
+    switch searchState {
+    case .presenting, .active:
+      searchState = .dismissing
+    case .dismissing, .inactive:
+      return
+    }
   }
 
   private func updateLegacySearchMode(_ active: Bool) {
@@ -575,7 +583,8 @@ final class NativeNavigationCoordinator {
 
   @available(iOS 26.0, *)
   private func finishNativeSearchDismissal(channel: FlutterMethodChannel?) {
-    guard searchState == .dismissing else { return }
+    guard searchState != .inactive else { return }
+    searchState = .dismissing
     DispatchQueue.main.async { [weak self, weak channel] in
       guard let self, self.searchState == .dismissing else { return }
       // UIKit has completed UISearchController dismissal. Restore the native

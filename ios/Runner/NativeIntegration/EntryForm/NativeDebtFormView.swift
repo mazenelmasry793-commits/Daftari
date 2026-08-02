@@ -45,10 +45,18 @@ struct NativeDebtFormView: View {
   var body: some View {
     NavigationStack {
       ScrollView {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 10) {
           compactField(title: "Title", placeholder: titlePlaceholder, text: $title)
           compactField(title: "Amount", placeholder: "0.00", text: $amount)
             .keyboardType(.decimalPad)
+
+          HStack {
+            Text("Date")
+              .font(.headline)
+            Spacer()
+            DatePicker("Date", selection: $date, displayedComponents: .date)
+              .labelsHidden()
+          }
 
           Text("Note")
             .font(.headline)
@@ -61,18 +69,10 @@ struct NativeDebtFormView: View {
               RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .stroke(Color.secondary.opacity(0.25), lineWidth: 0.5)
             }
-
-          HStack {
-            Text("Date")
-              .font(.headline)
-            Spacer()
-            DatePicker("Date", selection: $date, displayedComponents: .date)
-              .labelsHidden()
-          }
         }
         .padding(.horizontal, 20)
         .padding(.top, 12)
-        .padding(.bottom, 20)
+        .padding(.bottom, 8)
       }
       .scrollDismissesKeyboard(.interactively)
       .navigationTitle(initialValues == nil ? "New \(entryType.title)" : "Edit \(entryType.title)")
