@@ -71,8 +71,9 @@ class NativeSheetsChannel {
       case 'addEntryTypeSelected':
         final args = call.arguments as Map<dynamic, dynamic>?;
         final type = args?['type'] as String?;
-        if (type != null && onAddEntryTypeSelected != null) {
-          onAddEntryTypeSelected!(type);
+        if (type == null) break;
+        if (type == 'owedToMe' || type == 'owedByMe') {
+          onAddEntryTypeSelected?.call(type);
         }
         break;
       case 'addEntryChooserDismissed':

@@ -138,7 +138,7 @@ class _EntryDetailsScreenState extends ConsumerState<EntryDetailsScreen> {
     entry.payments = List.from(entry.payments)..add(payment);
     entry.updatedAt = DateTime.now();
 
-    if (entry.type != EntryType.scratchpad && entry.remainingAmount <= 0) {
+    if (entry.remainingAmount <= 0) {
       entry.status = EntryStatus.completed;
     }
 
@@ -167,8 +167,7 @@ class _EntryDetailsScreenState extends ConsumerState<EntryDetailsScreen> {
     entry.payments = List.from(entry.payments)..remove(payment);
     entry.updatedAt = DateTime.now();
 
-    if (entry.type != EntryType.scratchpad &&
-        entry.remainingAmount > 0 &&
+    if (entry.remainingAmount > 0 &&
         entry.status == EntryStatus.completed) {
       entry.status = EntryStatus.active;
     }
@@ -212,7 +211,6 @@ class _EntryDetailsScreenState extends ConsumerState<EntryDetailsScreen> {
             if (progress < 0.0) progress = 0.0;
           }
 
-          final bool isScratchpad = entry.type == EntryType.scratchpad;
           final bool isDeleted = entry.isDeleted;
 
           return Stack(
@@ -228,7 +226,7 @@ class _EntryDetailsScreenState extends ConsumerState<EntryDetailsScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  if (!isScratchpad) ...[
+
                     Row(
                       children: [
                         Expanded(
@@ -302,7 +300,6 @@ class _EntryDetailsScreenState extends ConsumerState<EntryDetailsScreen> {
                       ),
                     ),
                     const SizedBox(height: 24),
-                  ],
 
                   Text(
                     'Date: ${AppFormatters.date.format(entry.debtDate ?? entry.createdAt)}',
@@ -319,7 +316,7 @@ class _EntryDetailsScreenState extends ConsumerState<EntryDetailsScreen> {
                       ),
                     ),
 
-                  if (!isScratchpad) ...[
+
                     const SizedBox(height: 32),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -376,7 +373,6 @@ class _EntryDetailsScreenState extends ConsumerState<EntryDetailsScreen> {
                           ),
                         ),
                       ),
-                  ],
                 ],
               ),
               Positioned(
@@ -412,8 +408,7 @@ class _EntryDetailsScreenState extends ConsumerState<EntryDetailsScreen> {
                               label: const Text('Edit'),
                             ),
                           if (!isDeleted &&
-                              entry.status == EntryStatus.active &&
-                              entry.type != EntryType.scratchpad)
+                              entry.status == EntryStatus.active)
                             FilledButton.tonalIcon(
                               onPressed: () => _markCompleted(entry),
                               icon: const Icon(

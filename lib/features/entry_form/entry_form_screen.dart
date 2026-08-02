@@ -73,9 +73,7 @@ class _EntryFormScreenState extends ConsumerState<EntryFormScreen> {
       final entry = Entry()
         ..id = existing?.id ?? Isar.autoIncrement
         ..title = _titleController.text.trim()
-        ..amount = _type == EntryType.scratchpad
-            ? _parseAmount(_amountController.text)
-            : _parseAmount(_amountController.text)!
+        ..amount = _parseAmount(_amountController.text)!
         ..note = _noteController.text.trim().isEmpty
             ? null
             : _noteController.text.trim()
@@ -117,14 +115,14 @@ class _EntryFormScreenState extends ConsumerState<EntryFormScreen> {
         return 'Owed To Me';
       case EntryType.owedByMe:
         return 'Owed By Me';
-      case EntryType.scratchpad:
-        return 'Scratchpad';
+      // Legacy persisted values are removed during startup migration.
+      default:
+        return 'Owed To Me';
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final isScratchpad = _type == EntryType.scratchpad;
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -163,21 +161,19 @@ class _EntryFormScreenState extends ConsumerState<EntryFormScreen> {
                     decimal: true,
                   ),
                   decoration: InputDecoration(
-                    labelText: isScratchpad ? 'Amount (optional)' : 'Amount',
+                    labelText: 'Amount',
                     hintText: '0.00',
                   ),
                   validator: (value) {
                     final amount = _parseAmount(value ?? '');
-                    if (!isScratchpad && (amount == null || amount <= 0)) {
+                    if (amount == null || amount <= 0) {
                       return 'Amount is required for debt entries.';
                     }
-                    if (amount != null && amount <= 0) {
+                    if (amount <= 0) {
                       return 'Amount must be greater than zero.';
                     }
                     final paidAmount = widget.entry?.paidAmount ?? 0;
-                    if (!isScratchpad &&
-                        amount != null &&
-                        amount < paidAmount) {
+                    if (amount < paidAmount) {
                       return 'Amount cannot be less than the paid amount.';
                     }
                     return null;

@@ -3,18 +3,16 @@ import Foundation
 enum NativeEntryFormType: String {
   case owedToMe
   case owedByMe
-  case scratchpad
 
   var title: String {
     switch self {
     case .owedToMe: return "Owed To Me"
     case .owedByMe: return "Owed By Me"
-    case .scratchpad: return "Scratchpad"
     }
   }
 
   var amountPlaceholder: String {
-    self == .scratchpad ? "Amount (optional)" : "Amount"
+    "Amount"
   }
 }
 

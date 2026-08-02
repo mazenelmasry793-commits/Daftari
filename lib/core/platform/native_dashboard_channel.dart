@@ -52,7 +52,9 @@ class NativeDashboardChannel {
 
   Future<void> updateSnapshot(Iterable<Entry> entries) async {
     if (!_isIos()) return;
-    final list = entries.toList(growable: false);
+    final list = entries
+        .where((entry) => entry.type != EntryType.scratchpad)
+        .toList(growable: false);
     final totals = calculateDashboardTotals(list);
     final recent = list.take(6).toList(growable: false);
     final payload = <String, dynamic>{
@@ -69,34 +71,16 @@ class NativeDashboardChannel {
       'iOweEntryCount': list
           .where((entry) => entry.type == EntryType.owedByMe)
           .length,
-      'scratchpadEntryCount': list
-          .where((entry) => entry.type == EntryType.scratchpad)
-          .length,
       'totalRecentCount': recent.length,
       'recentEntries': [
         for (final entry in recent)
           {
             'id': entry.id.toString(),
             'title': entry.title,
-            'type': switch (entry.type) {
-              EntryType.owedToMe => 'owedToMe',
-              EntryType.owedByMe => 'owedByMe',
-              EntryType.scratchpad => 'scratchpad',
-            },
-            'amountMinor':
-                ((entry.type == EntryType.scratchpad
-                            ? entry.amount ?? 0
-                            : entry.remainingAmount) *
-                        100)
-                    .round(),
-            'amountText': AppFormatters.money.format(
-              entry.type == EntryType.scratchpad
-                  ? entry.amount ?? 0
-                  : entry.remainingAmount,
-            ),
-            'previewText': entry.type == EntryType.scratchpad
-                ? (entry.note?.trim() ?? '')
-                : '',
+            'type': entry.type.dbValue,
+            'amountMinor': (entry.remainingAmount * 100).round(),
+            'amountText': AppFormatters.money.format(entry.remainingAmount),
+            'previewText': '',
             'dateIso8601': (entry.debtDate ?? entry.createdAt)
                 .toIso8601String(),
             'dateText': AppFormatters.date.format(
@@ -109,19 +93,9 @@ class NativeDashboardChannel {
           {
             'id': entry.id.toString(),
             'title': entry.title,
-            'type': switch (entry.type) {
-              EntryType.owedToMe => 'owedToMe',
-              EntryType.owedByMe => 'owedByMe',
-              EntryType.scratchpad => 'scratchpad',
-            },
-            'amountText': AppFormatters.money.format(
-              entry.type == EntryType.scratchpad
-                  ? entry.amount ?? 0
-                  : entry.remainingAmount,
-            ),
-            'previewText': entry.type == EntryType.scratchpad
-                ? (entry.note?.trim() ?? '')
-                : '',
+            'type': entry.type.dbValue,
+            'amountText': AppFormatters.money.format(entry.remainingAmount),
+            'previewText': '',
             'updatedAtIso8601': entry.updatedAt.toIso8601String(),
             'updatedAtText': AppFormatters.date.format(entry.updatedAt),
             'dateText': AppFormatters.date.format(

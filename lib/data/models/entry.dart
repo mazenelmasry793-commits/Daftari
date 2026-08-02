@@ -5,6 +5,7 @@ part 'entry.g.dart';
 enum EntryType {
   owedToMe('owed_to_me', 'Owed To Me'),
   owedByMe('owed_by_me', 'Owed By Me'),
+  @Deprecated('Persisted-value compatibility for the one-time migration only')
   scratchpad('scratchpad', 'Scratchpad');
 
   const EntryType(this.dbValue, this.label);
@@ -79,9 +80,7 @@ class Entry {
   double get remainingAmount => (amount ?? 0) - paidAmount;
 
   bool markCompleted({required DateTime completedAt}) {
-    if (isDeleted ||
-        type == EntryType.scratchpad ||
-        status == EntryStatus.completed) {
+    if (isDeleted || status == EntryStatus.completed) {
       return false;
     }
 

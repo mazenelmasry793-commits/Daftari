@@ -168,12 +168,8 @@ class EntryRepositoryImpl implements EntryRepository {
     if (entry.title.trim().isEmpty) {
       throw ArgumentError('Title is required.');
     }
-    if (entry.type != EntryType.scratchpad &&
-        (entry.amount == null || entry.amount! <= 0)) {
+    if (entry.amount == null || entry.amount! <= 0) {
       throw ArgumentError('Amount is required for debt entries.');
-    }
-    if (entry.type == EntryType.scratchpad) {
-      entry.amount ??= null;
     }
     await _isar.writeTxn(() async {
       await _isar.entries.put(entry);
@@ -270,6 +266,7 @@ class EntryRepositoryImpl implements EntryRepository {
     final imported = entries
         .whereType<Map<String, dynamic>>()
         .map(entryFromJson)
+        .where((entry) => entry.type != EntryType.scratchpad)
         .toList(growable: false);
 
     int newEntries = 0;
@@ -304,6 +301,7 @@ class EntryRepositoryImpl implements EntryRepository {
     final imported = entries
         .whereType<Map<String, dynamic>>()
         .map(entryFromJson)
+        .where((entry) => entry.type != EntryType.scratchpad)
         .toList(growable: false);
     if (imported.isEmpty) {
       return const ImportResult(inserted: 0, replaced: 0, skipped: 0);

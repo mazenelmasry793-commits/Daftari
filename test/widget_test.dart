@@ -16,6 +16,9 @@ void main() {
       ProviderScope(
         overrides: [
           entryRepositoryProvider.overrideWithValue(_EmptyEntryRepository()),
+          appRepositoryReadyProvider.overrideWith(
+            (ref) async => _EmptyEntryRepository(),
+          ),
         ],
         child: const DebtTrackerApp(),
       ),
@@ -34,6 +37,9 @@ void main() {
       ProviderScope(
         overrides: [
           entryRepositoryProvider.overrideWithValue(_EmptyEntryRepository()),
+          appRepositoryReadyProvider.overrideWith(
+            (ref) async => _EmptyEntryRepository(),
+          ),
         ],
         child: const MaterialApp(home: SettingsScreen()),
       ),

@@ -3,8 +3,7 @@ import SwiftUI
 import UIKit
 
 final class NativeEntryFormCoordinator {
-  // Shared compact height keeps debt and Scratchpad forms aligned while
-  // leaving the existing field spacing and keyboard detent behavior intact.
+  // Shared compact height keeps the two debt forms aligned.
   private static let compactEntryFormHeight: CGFloat = 510
 
   private weak var presentedNavigationController: UINavigationController?
@@ -30,11 +29,7 @@ final class NativeEntryFormCoordinator {
     }
     isPresented = true
 
-    if entryType == .scratchpad, initialValues == nil, #available(iOS 16.4, *) {
-      return presentScratchpad(from: presenter, messenger: messenger)
-    }
-
-    if entryType != .scratchpad, #available(iOS 16.4, *) {
+    if #available(iOS 16.4, *) {
       return presentDebtForm(
         entryType: entryType,
         initialValues: initialValues,
@@ -174,63 +169,6 @@ final class NativeEntryFormCoordinator {
     let presentationDelegate = PresentationDelegate { [weak self] in
       self?.reset()
       onDismiss?()
-    }
-    self.presentationDelegate = presentationDelegate
-    formViewController.presentationController?.delegate = presentationDelegate
-    presentedViewController = formViewController
-    presenter.present(formViewController, animated: true) { [weak self, weak formViewController] in
-      guard let self, let formViewController, formViewController.presentingViewController != nil else {
-        self?.reset()
-        return
-      }
-    }
-    return true
-  }
-
-  @available(iOS 16.4, *)
-  private func presentScratchpad(
-    from presenter: UIViewController,
-    messenger: FlutterBinaryMessenger
-  ) -> Bool {
-    let formViewController = UIHostingController(
-      rootView: NativeScratchpadFormView(
-        initialValues: nil,
-        onSubmit: { [weak self] payload, completion in
-          let channel = FlutterMethodChannel(
-            name: NativeChannelConstants.sheetsChannel,
-            binaryMessenger: messenger
-          )
-          channel.invokeMethod(
-            NativeChannelConstants.SheetMethod.nativeEntryFormSubmitted,
-            arguments: payload.dictionary
-          ) { result in
-            let didSave = (result as? Bool) == true
-            DispatchQueue.main.async {
-              completion(didSave)
-              if didSave { self?.reset() }
-            }
-          }
-        }
-      )
-    )
-    formViewController.modalPresentationStyle = .pageSheet
-    formViewController.view.backgroundColor = .clear
-    if #available(iOS 15.0, *), let sheet = formViewController.sheetPresentationController {
-      if #available(iOS 16.0, *) {
-        sheet.detents = [
-          .custom(identifier: .init("nativeScratchpadCompact")) { context in
-            min(Self.compactEntryFormHeight, context.maximumDetentValue)
-          },
-        ]
-      } else {
-        sheet.detents = [.medium()]
-      }
-      sheet.selectedDetentIdentifier = sheet.detents.first?.identifier
-      sheet.prefersGrabberVisible = true
-      sheet.preferredCornerRadius = 28
-    }
-    let presentationDelegate = PresentationDelegate { [weak self] in
-      self?.reset()
     }
     self.presentationDelegate = presentationDelegate
     formViewController.presentationController?.delegate = presentationDelegate

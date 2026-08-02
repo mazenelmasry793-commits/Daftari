@@ -23,7 +23,7 @@ struct NativeSearchView: View {
         .offset(y: -24)
       } else {
         List {
-          ForEach(["owedToMe", "owedByMe", "scratchpad"], id: \.self) { type in
+          ForEach(["owedToMe", "owedByMe"], id: \.self) { type in
             let matches = store.results.filter { $0.type == type }
             if !matches.isEmpty {
               Section(matches[0].sectionTitle) {

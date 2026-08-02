@@ -22,8 +22,8 @@ class EntryCard extends StatelessWidget {
         return const Color(0xFF1976D2); // Blue
       case EntryType.owedByMe:
         return const Color(0xFFF57C00); // Orange
-      case EntryType.scratchpad:
-        return Theme.of(context).colorScheme.primary;
+      default:
+        return const Color(0xFF1976D2);
     }
   }
 
@@ -31,7 +31,6 @@ class EntryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final color = _colorForType(context);
-    final amountText = AppFormatters.moneyValue(entry.amount);
     final note = entry.note?.trim();
 
     IconData getIcon() {
@@ -40,15 +39,13 @@ class EntryCard extends StatelessWidget {
           return Icons.south_west_rounded;
         case EntryType.owedByMe:
           return Icons.north_east_rounded;
-        case EntryType.scratchpad:
-          return Icons.edit_document;
+        default:
+          return Icons.south_west_rounded;
       }
     }
 
     final isCompleted = entry.status == EntryStatus.completed ||
-        (entry.type != EntryType.scratchpad &&
-            (entry.amount ?? 0) > 0 &&
-            entry.remainingAmount <= 0);
+        (entry.amount ?? 0) > 0 && entry.remainingAmount <= 0;
 
     return AnimatedScale(
       scale: 1,
@@ -115,9 +112,7 @@ class EntryCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Text(
-                          entry.type == EntryType.scratchpad
-                              ? amountText
-                              : AppFormatters.moneyValue(entry.remainingAmount),
+                          AppFormatters.moneyValue(entry.remainingAmount),
                           style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                 fontWeight: FontWeight.w800,
                                 color: color,
@@ -135,7 +130,7 @@ class EntryCard extends StatelessWidget {
                     ],
                   ],
                 ),
-                if (entry.type != EntryType.scratchpad && !isCompleted) ...[
+                if (!isCompleted) ...[
                   const SizedBox(height: 16),
                   Builder(
                     builder: (context) {
@@ -207,4 +202,3 @@ class _StatusChip extends StatelessWidget {
     );
   }
 }
-

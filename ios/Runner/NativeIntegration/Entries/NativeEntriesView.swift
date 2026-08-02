@@ -17,8 +17,6 @@ struct NativeEntriesView: View {
           owedToMeContent
         } else if type == .owedByMe {
           owedByMeContent
-        } else if type == .scratchpad {
-          scratchpadContent
         } else {
           genericContent
         }
@@ -29,7 +27,7 @@ struct NativeEntriesView: View {
       .toolbar {
         ToolbarItemGroup(placement: .topBarTrailing) {
           Button(action: onAdd) { Image(systemName: "plus") }
-            .accessibilityLabel(type == .scratchpad ? "Add Note" : "Add Entry")
+            .accessibilityLabel("Add Entry")
           Button(action: onSettings) { Image(systemName: "gearshape.fill") }
             .accessibilityLabel("Settings")
         }
@@ -45,7 +43,7 @@ struct NativeEntriesView: View {
       } description: {
         Text(type.emptyMessage)
       } actions: {
-        Button(type == .scratchpad ? "Add Note" : "Add Entry", action: onAdd)
+        Button("Add Entry", action: onAdd)
           .buttonStyle(.borderedProminent)
       }
     } else {
@@ -139,48 +137,6 @@ struct NativeEntriesView: View {
     }
   }
 
-  @ViewBuilder
-  private var scratchpadContent: some View {
-    if filteredEntries.isEmpty {
-      ContentUnavailableView {
-        Label("Your scratchpad is empty", systemImage: "note.text")
-      } description: {
-        Text("Use it for quick notes, rough calculations, or unfinished debt ideas.")
-      } actions: {
-        Button("Add Note", action: onAdd)
-          .buttonStyle(.borderedProminent)
-      }
-    } else {
-      ScrollView {
-        VStack(alignment: .leading, spacing: 10) {
-          ScratchpadSummaryCard(
-            noteCount: filteredEntries.count,
-            latestUpdatedText: latestNoteUpdatedText
-          )
-          HStack(alignment: .firstTextBaseline, spacing: 10) {
-            Text("Notes")
-              .font(.title3.weight(.bold))
-            Spacer(minLength: 8)
-            Text("\(filteredEntries.count)")
-              .font(.headline)
-              .foregroundStyle(.secondary)
-          }
-          ScratchpadGroupedList(
-            entries: filteredEntries,
-            onEntrySelected: onEntrySelected
-          )
-        }
-        .padding(.horizontal, 16)
-        .padding(.top, 4)
-        .padding(.bottom, 88)
-      }
-      .scrollIndicators(.hidden)
-    }
-  }
-
-  private var latestNoteUpdatedText: String {
-    filteredEntries.max { lhs, rhs in lhs.updatedAt < rhs.updatedAt }?.updatedAtText ?? ""
-  }
 }
 
 @available(iOS 26.0, *)
@@ -428,145 +384,6 @@ private struct OwedByMeEntryRow: View {
 }
 
 @available(iOS 26.0, *)
-private struct ScratchpadSummaryCard: View {
-  let noteCount: Int
-  let latestUpdatedText: String
-
-  private var noteCountText: String {
-    "\(noteCount) \(noteCount == 1 ? "Note" : "Notes")"
-  }
-
-  var body: some View {
-    ZStack(alignment: .topLeading) {
-      VStack(alignment: .leading, spacing: 8) {
-        Image(systemName: "note.text")
-          .font(.headline.weight(.semibold))
-          .foregroundStyle(.purple)
-          .frame(width: 48, height: 48)
-          .background(.white.opacity(0.88), in: Circle())
-          .overlay { Circle().stroke(.white.opacity(0.52), lineWidth: 1) }
-        Spacer(minLength: 2)
-        Text("Your Scratchpad")
-          .font(.headline.weight(.medium))
-          .foregroundStyle(.white.opacity(0.96))
-        Text(noteCountText)
-          .font(.system(.title2, design: .rounded).weight(.bold))
-          .foregroundStyle(.white)
-          .lineLimit(1)
-        if !latestUpdatedText.isEmpty {
-          HStack(spacing: 6) {
-            Image(systemName: "calendar")
-              .font(.caption)
-            Text("Updated \(latestUpdatedText)")
-          }
-          .font(.caption)
-          .foregroundStyle(.white.opacity(0.92))
-          .lineLimit(1)
-        }
-      }
-      .padding(16)
-    }
-    .frame(maxWidth: .infinity, minHeight: 140, alignment: .leading)
-    .background(
-      LinearGradient(
-        colors: [Color(red: 0.62, green: 0.45, blue: 0.96), Color(red: 0.35, green: 0.22, blue: 0.88)],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
-      )
-    )
-    .overlay(alignment: .bottomTrailing) {
-      ZStack {
-        Circle()
-          .stroke(.white.opacity(0.14), lineWidth: 28)
-          .frame(width: 280, height: 280)
-          .offset(x: 110, y: 112)
-        Circle()
-          .stroke(.white.opacity(0.12), lineWidth: 22)
-          .frame(width: 190, height: 190)
-          .offset(x: 86, y: 100)
-      }
-      .allowsHitTesting(false)
-    }
-    .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-    .shadow(color: .black.opacity(0.10), radius: 10, y: 5)
-    .accessibilityElement(children: .combine)
-    .accessibilityLabel("Your scratchpad, \(noteCountText)")
-  }
-}
-
-@available(iOS 26.0, *)
-private struct ScratchpadGroupedList: View {
-  let entries: [NativeEntryListItem]
-  let onEntrySelected: (String) -> Void
-
-  var body: some View {
-    VStack(spacing: 0) {
-      ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
-        Button { onEntrySelected(entry.id) } label: {
-          ScratchpadNoteRow(entry: entry)
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("\(entry.title), \(entry.previewText), \(entry.dateText)")
-        if index < entries.count - 1 {
-          Divider().padding(.leading, 72)
-        }
-      }
-    }
-    .padding(.vertical, 2)
-    .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-    .overlay {
-      RoundedRectangle(cornerRadius: 22, style: .continuous)
-        .stroke(Color.primary.opacity(0.06), lineWidth: 1)
-    }
-  }
-}
-
-@available(iOS 26.0, *)
-private struct ScratchpadNoteRow: View {
-  let entry: NativeEntryListItem
-
-  var body: some View {
-    HStack(alignment: .top, spacing: 10) {
-      Image(systemName: "note.text")
-        .font(.headline.weight(.semibold))
-        .foregroundStyle(.purple)
-        .frame(width: 48, height: 48)
-        .background(Color.purple.opacity(0.12), in: Circle())
-      VStack(alignment: .leading, spacing: 2) {
-        Text(entry.title)
-          .font(.subheadline.weight(.semibold))
-          .lineLimit(1)
-          .truncationMode(.tail)
-        if !entry.previewText.isEmpty {
-          Text(entry.previewText)
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .lineLimit(2)
-            .truncationMode(.tail)
-        }
-        HStack(spacing: 6) {
-          Image(systemName: "calendar")
-            .font(.caption2)
-          Text(entry.dateText)
-        }
-        .font(.caption)
-        .foregroundStyle(.secondary)
-        .lineLimit(1)
-      }
-      Spacer(minLength: 8)
-      Image(systemName: "chevron.right")
-        .font(.caption.weight(.bold))
-        .foregroundStyle(.tertiary)
-        .padding(.top, 18)
-    }
-    .padding(.horizontal, 12)
-    .padding(.vertical, 10)
-    .frame(minHeight: 80)
-    .contentShape(Rectangle())
-  }
-}
-
-@available(iOS 26.0, *)
 private struct NativeEntryRow: View {
   let entry: NativeEntryListItem
   let type: NativeEntryListType
@@ -575,7 +392,6 @@ private struct NativeEntryRow: View {
     switch type {
     case .owedToMe: return .blue
     case .owedByMe: return .orange
-    case .scratchpad: return .indigo
     }
   }
 

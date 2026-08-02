@@ -39,7 +39,7 @@ class DashboardEmptyState extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'Your new debts and scratchpad notes will appear here.',
+            'Your new debts will appear here.',
             textAlign: TextAlign.center,
             style: Theme.of(
               context,

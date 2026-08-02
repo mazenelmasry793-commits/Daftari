@@ -12,18 +12,16 @@ class RecentEntryRow extends StatelessWidget {
   Color _color(BuildContext context) => switch (entry.type) {
     EntryType.owedToMe => const Color(0xFF1976D2),
     EntryType.owedByMe => const Color(0xFFE87500),
-    EntryType.scratchpad => Theme.of(context).colorScheme.primary,
+    _ => const Color(0xFF1976D2),
   };
 
   IconData get _icon => switch (entry.type) {
     EntryType.owedToMe => Icons.south_west_rounded,
     EntryType.owedByMe => Icons.north_east_rounded,
-    EntryType.scratchpad => Icons.edit_document,
+    _ => Icons.south_west_rounded,
   };
 
-  String get _amount => entry.type == EntryType.scratchpad
-      ? AppFormatters.moneyValue(entry.amount)
-      : AppFormatters.moneyValue(entry.remainingAmount);
+  String get _amount => AppFormatters.moneyValue(entry.remainingAmount);
 
   @override
   Widget build(BuildContext context) {

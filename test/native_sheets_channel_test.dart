@@ -20,11 +20,7 @@ void main() {
     await sheets.handleNativeCall(
       const MethodCall('addEntryTypeSelected', {'type': 'owedByMe'}),
     );
-    await sheets.handleNativeCall(
-      const MethodCall('addEntryTypeSelected', {'type': 'scratchpad'}),
-    );
-
-    expect(selectedTypes, ['owedToMe', 'owedByMe', 'scratchpad']);
+    expect(selectedTypes, ['owedToMe', 'owedByMe']);
   });
 
   test('unknown type values are ignored safely without notifying callbacks', () async {
@@ -43,7 +39,7 @@ void main() {
       const MethodCall('addEntryTypeSelected', <String, dynamic>{}),
     );
 
-    expect(selectedTypes, ['unknownType']);
+    expect(selectedTypes, isEmpty);
   });
 
   test('swipe dismissal resets presentation state without calling onAddEntryTypeSelected', () async {

@@ -172,7 +172,7 @@ class SettingsScreen extends ConsumerWidget {
                     context,
                     title: 'Delete all data?',
                     message:
-                        'This removes every entry, including completed items and scratchpad notes.',
+                        'This removes every entry from this device.',
                     confirmLabel: 'Delete All',
                     destructive: true,
                   );

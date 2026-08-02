@@ -86,11 +86,9 @@ final class NativeFloatingNavigationView: UIView, UITabBarDelegate {
     owedToMeItem.accessibilityLabel = "Owed To Me"
     let owedByMeItem = UITabBarItem(title: "I Owe", image: UIImage(systemName: "arrow.up.right.circle"), tag: 2)
     owedByMeItem.accessibilityLabel = "Owed By Me"
-    let scratchItem = UITabBarItem(title: "Notes", image: UIImage(systemName: "note.text"), tag: 3)
-    scratchItem.accessibilityLabel = "Scratchpad"
-    let searchItem = UITabBarItem(title: "Search", image: UIImage(systemName: "magnifyingglass"), tag: 4)
+    let searchItem = UITabBarItem(title: "Search", image: UIImage(systemName: "magnifyingglass"), tag: 3)
     searchItem.accessibilityLabel = "Search"
-    let items = [dashItem, owedToMeItem, owedByMeItem, scratchItem, searchItem]
+    let items = [dashItem, owedToMeItem, owedByMeItem, searchItem]
     tabBar.items = items
     tabBar.selectedItem = items.first
 
@@ -298,7 +296,6 @@ final class NativeFloatingNavigationView: UIView, UITabBarDelegate {
   @available(iOS 14.0, *)
   private func makeAddMenu() -> UIMenu {
     let actions = [
-      NativeAddEntryOption.scratchpad,
       NativeAddEntryOption.owedByMe,
       NativeAddEntryOption.owedToMe,
     ].map { option in

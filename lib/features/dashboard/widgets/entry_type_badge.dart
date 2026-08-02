@@ -8,11 +8,10 @@ class EntryTypeBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final (label, color) = switch (type) {
       EntryType.owedToMe => ('To Me', const Color(0xFF1976D2)),
       EntryType.owedByMe => ('I Owe', const Color(0xFFE87500)),
-      EntryType.scratchpad => ('Note', scheme.onSurfaceVariant),
+      _ => ('To Me', const Color(0xFF1976D2)),
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),

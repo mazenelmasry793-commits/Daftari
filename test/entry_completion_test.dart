@@ -50,26 +50,18 @@ void main() {
     expect(fullyPaid.updatedAt, completedAt);
   });
 
-  test(
-    'completion safely handles overpaid, deleted, and scratchpad entries',
-    () {
+  test('completion safely handles overpaid and deleted entries', () {
       final overpaid = _debt(
         amount: 100,
         payments: [_payment(125, DateTime(2026, 1, 1))],
       );
       final deleted = _debt(amount: 100, deletedAt: DateTime(2026, 1, 1));
-      final scratchpad = _debt(amount: 100, type: EntryType.scratchpad);
 
       expect(overpaid.markCompleted(completedAt: DateTime(2026, 1, 2)), isTrue);
       expect(overpaid.status, EntryStatus.completed);
       expect(overpaid.payments, hasLength(1));
       expect(deleted.markCompleted(completedAt: DateTime(2026, 1, 2)), isFalse);
       expect(deleted.status, EntryStatus.active);
-      expect(
-        scratchpad.markCompleted(completedAt: DateTime(2026, 1, 2)),
-        isFalse,
-      );
-      expect(scratchpad.status, EntryStatus.active);
     },
   );
 

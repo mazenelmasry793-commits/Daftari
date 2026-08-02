@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:debt_tracker/core/platform/ios_navigation_channel.dart';
 import 'package:debt_tracker/core/platform/native_dashboard_channel.dart';
 import 'package:debt_tracker/core/platform/native_entry_details_channel.dart';
-import 'package:debt_tracker/core/platform/native_note_details_channel.dart';
 import 'package:debt_tracker/core/platform/app_toast_service.dart';
 import 'package:debt_tracker/core/widgets/confirm_dialog.dart';
 import 'package:debt_tracker/core/platform/native_sheets_channel.dart';
@@ -16,7 +15,6 @@ import 'package:debt_tracker/features/entry_details/entry_details_screen.dart';
 import 'package:debt_tracker/features/entry_form/entry_form_screen.dart';
 import 'package:debt_tracker/features/owed_by_me/owed_by_me_screen.dart';
 import 'package:debt_tracker/features/owed_to_me/owed_to_me_screen.dart';
-import 'package:debt_tracker/features/scratchpad/scratchpad_screen.dart';
 import 'package:debt_tracker/features/search/search_screen.dart';
 import 'package:debt_tracker/features/settings/settings_screen.dart';
 import 'package:debt_tracker/features/trash/trash_screen.dart';
@@ -46,7 +44,6 @@ class _AppShellState extends ConsumerState<AppShell> {
     'Dashboard',
     'Owed To Me',
     'Owed By Me',
-    'Scratchpad',
   ];
 
   @override
@@ -77,8 +74,6 @@ class _AppShellState extends ConsumerState<AppShell> {
     nativeEntryDetailsChannel.onLoadEntry = _loadNativeEntryDetails;
     nativeEntryDetailsChannel.onPerformAction =
         _performNativeEntryDetailsAction;
-    nativeNoteDetailsChannel.onLoadNote = _loadNativeNoteDetails;
-    nativeNoteDetailsChannel.onPerformAction = _performNativeNoteDetailsAction;
     nativeSheetsChannel.onAddEntryTypeSelected = _handleNativeEntryType;
     nativeSheetsChannel.onNativeEntryFormSubmitted = _saveNativeEntry;
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -111,8 +106,6 @@ class _AppShellState extends ConsumerState<AppShell> {
     nativeDashboardChannel.onOpenEntryDetails = null;
     nativeEntryDetailsChannel.onLoadEntry = null;
     nativeEntryDetailsChannel.onPerformAction = null;
-    nativeNoteDetailsChannel.onLoadNote = null;
-    nativeNoteDetailsChannel.onPerformAction = null;
     nativeSheetsChannel.onAddEntryTypeSelected = null;
     nativeSheetsChannel.onNativeEntryFormSubmitted = null;
     unawaited(iosNavigationChannel.setNavigationVisible(false));
@@ -199,15 +192,13 @@ class _AppShellState extends ConsumerState<AppShell> {
     await iosNavigationChannel.updateNativeSearchResults({
       'query': query,
       'results': [
-        for (final entry in results)
+        for (final entry in results.where(
+          (entry) => entry.type != EntryType.scratchpad,
+        ))
           {
             'id': entry.id.toString(),
             'title': entry.title,
-            'type': switch (entry.type) {
-              EntryType.owedToMe => 'owedToMe',
-              EntryType.owedByMe => 'owedByMe',
-              EntryType.scratchpad => 'scratchpad',
-            },
+            'type': entry.type.dbValue,
             'dateText': AppFormatters.date.format(
               entry.debtDate ?? entry.createdAt,
             ),
@@ -362,20 +353,17 @@ class _AppShellState extends ConsumerState<AppShell> {
     return {
       'schemaVersion': 1,
       'entries': [
-        for (final entry in entries)
+        for (final entry in entries.where(
+          (entry) => entry.type != EntryType.scratchpad,
+        ))
           {
             'id': entry.id.toString(),
             'title': entry.title,
-            'type': switch (entry.type) {
-              EntryType.owedToMe => 'owedToMe',
-              EntryType.owedByMe => 'owedByMe',
-              EntryType.scratchpad => 'scratchpad',
-            },
+            'type': entry.type.dbValue,
             'dateText': AppFormatters.date.format(
               entry.debtDate ?? entry.createdAt,
             ),
-            if (entry.type.isDebt)
-              'amountText': AppFormatters.moneyValue(entry.amount ?? 0),
+            'amountText': AppFormatters.moneyValue(entry.amount ?? 0),
           },
       ],
     };
@@ -408,83 +396,6 @@ class _AppShellState extends ConsumerState<AppShell> {
         .read(entryRepositoryProvider)
         .getById(int.parse(id));
     return _nativeEntryDetailsResponse(entry);
-  }
-
-  Future<Map<String, dynamic>> _loadNativeNoteDetails(String id) async {
-    final entry = await ref
-        .read(entryRepositoryProvider)
-        .getById(int.parse(id));
-    return _nativeNoteDetailsResponse(entry);
-  }
-
-  Future<Map<String, dynamic>> _performNativeNoteDetailsAction(
-    String id,
-    String action,
-    Map<String, dynamic>? payload,
-  ) async {
-    final repository = ref.read(entryRepositoryProvider);
-    final entry = await repository.getById(int.parse(id));
-    if (entry == null) return _nativeNoteDetailsResponse(null, close: true);
-
-    try {
-      if (action == 'save') {
-        final title = (payload?['title'] as String? ?? '').trim();
-        final note = (payload?['note'] as String? ?? '').trim();
-        final date = DateTime.tryParse(
-          payload?['dateIso8601'] as String? ?? '',
-        );
-        if (title.isEmpty || date == null) {
-          await appToastService.show(
-            'Enter a title and valid date',
-            type: AppToastType.error,
-          );
-          return _nativeNoteDetailsResponse(entry, actionSucceeded: false);
-        }
-        entry
-          ..title = title
-          ..note = note.isEmpty ? null : note
-          ..debtDate = date
-          ..updatedAt = DateTime.now();
-        await repository.save(entry);
-        await appToastService.show('Note updated', type: AppToastType.success);
-      } else if (action == 'delete') {
-        await repository.softDelete(entry.id);
-        await appToastService.show(
-          'Moved to trash',
-          type: AppToastType.success,
-        );
-        return _nativeNoteDetailsResponse(
-          await repository.getById(entry.id),
-          close: true,
-        );
-      }
-      return _nativeNoteDetailsResponse(
-        await repository.getById(entry.id),
-        actionSucceeded: true,
-      );
-    } catch (_) {
-      await appToastService.show(
-        'Unable to update note',
-        type: AppToastType.error,
-      );
-      return _nativeNoteDetailsResponse(entry, actionSucceeded: false);
-    }
-  }
-
-  Map<String, dynamic> _nativeNoteDetailsResponse(
-    Entry? entry, {
-    bool close = false,
-    bool? actionSucceeded,
-  }) {
-    if (entry == null) {
-      return {'schemaVersion': 1, 'close': close, 'note': null};
-    }
-    return {
-      'schemaVersion': 1,
-      'close': close,
-      if (actionSucceeded != null) 'actionSucceeded': actionSucceeded,
-      'note': nativeNoteDetailsEntryPayload(entry),
-    };
   }
 
   Future<Map<String, dynamic>> _performNativeEntryDetailsAction(
@@ -730,15 +641,6 @@ class _AppShellState extends ConsumerState<AppShell> {
                     _openForm(initialType: EntryType.owedByMe);
                   },
                 ),
-                ListTile(
-                  leading: const Icon(Icons.edit_document),
-                  title: const Text('Scratchpad'),
-                  subtitle: const Text('Quick note or rough calculation.'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _openForm(initialType: EntryType.scratchpad);
-                  },
-                ),
               ],
             ),
           ),
@@ -763,7 +665,6 @@ class _AppShellState extends ConsumerState<AppShell> {
     final type = switch (payload['type']) {
       'owedToMe' => EntryType.owedToMe,
       'owedByMe' => EntryType.owedByMe,
-      'scratchpad' => EntryType.scratchpad,
       _ => null,
     };
     final title = (payload['title'] as String? ?? '').trim();
@@ -773,10 +674,7 @@ class _AppShellState extends ConsumerState<AppShell> {
     final debtDate = DateTime.tryParse(payload['debtDate'] as String? ?? '');
 
     if (type == null || title.isEmpty) return false;
-    if (type != EntryType.scratchpad && (amount == null || amount <= 0)) {
-      return false;
-    }
-    if (amount != null && amount <= 0) return false;
+    if (amount == null || amount <= 0) return false;
 
     try {
       final now = DateTime.now();
@@ -786,10 +684,7 @@ class _AppShellState extends ConsumerState<AppShell> {
           ? null
           : await repository.getById(existingId);
       if (existingId != null && existing == null) return false;
-      if (existing != null &&
-          type != EntryType.scratchpad &&
-          amount != null &&
-          amount < existing.paidAmount) {
+      if (existing != null && amount < existing.paidAmount) {
         return false;
       }
       final entry = Entry()
@@ -830,6 +725,7 @@ class _AppShellState extends ConsumerState<AppShell> {
       _dismissSearch(nextIndex: index);
       return;
     }
+    if (index < 0 || index > 2) return;
     if (_index == index) return;
     setState(() {
       _index = index;
@@ -840,7 +736,7 @@ class _AppShellState extends ConsumerState<AppShell> {
 
   @override
   Widget build(BuildContext context) {
-    final bootstrap = ref.watch(appBootstrapProvider);
+    final bootstrap = ref.watch(appRepositoryReadyProvider);
 
     return bootstrap.when(
       loading: () => const Scaffold(
@@ -863,12 +759,9 @@ class _AppShellState extends ConsumerState<AppShell> {
       DashboardScreen(onSearch: _openSearch, onAdd: _openAddChooser),
       OwedToMeScreen(onAdd: () => _openForm(initialType: EntryType.owedToMe)),
       OwedByMeScreen(onAdd: () => _openForm(initialType: EntryType.owedByMe)),
-      ScratchpadScreen(
-        onAdd: () => _openForm(initialType: EntryType.scratchpad),
-      ),
     ];
 
-    final showSearch = _index == 0 || _index == 1 || _index == 2 || _index == 3;
+    final showSearch = _index >= 0 && _index <= 2;
     final useNativeIosNavigation = Platform.isIOS;
 
     return Scaffold(
@@ -943,12 +836,6 @@ class _AppShellState extends ConsumerState<AppShell> {
                     onTap: () => _selectTab(0),
                   ),
                   _NavBarItem(
-                    icon: Icons.edit_document,
-                    isSelected: _index == 3,
-                    onTap: () => _selectTab(3),
-                  ),
-                  const SizedBox(width: 48), // Space for FAB
-                  _NavBarItem(
                     icon: Icons.call_received_rounded,
                     isSelected: _index == 1,
                     onTap: () => _selectTab(1),
@@ -980,8 +867,6 @@ class _AppShellState extends ConsumerState<AppShell> {
         return EntryType.owedToMe;
       case 2:
         return EntryType.owedByMe;
-      case 3:
-        return EntryType.scratchpad;
       default:
         return EntryType.owedToMe;
     }

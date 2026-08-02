@@ -191,25 +191,16 @@ private struct NativeDashboardEntryRow: View {
           .padding(.horizontal, 8)
           .padding(.vertical, 3)
           .background(tint.opacity(0.12), in: Capsule())
-        if entry.type == "scratchpad", !entry.previewText.isEmpty {
-          Text(entry.previewText)
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .lineLimit(1)
-            .truncationMode(.tail)
-        }
         Label(entry.dateText, systemImage: "calendar")
           .font(.caption)
           .foregroundStyle(.secondary)
       }
       Spacer(minLength: 4)
-      if entry.type != "scratchpad" {
-        Text(entry.amountText)
-          .font(.subheadline.weight(.semibold))
-          .foregroundStyle(tint)
-          .lineLimit(1)
-          .minimumScaleFactor(0.65)
-      }
+      Text(entry.amountText)
+        .font(.subheadline.weight(.semibold))
+        .foregroundStyle(tint)
+        .lineLimit(1)
+        .minimumScaleFactor(0.65)
       Image(systemName: "chevron.right")
         .font(.caption.weight(.bold))
         .foregroundStyle(.tertiary)
@@ -218,9 +209,7 @@ private struct NativeDashboardEntryRow: View {
     .padding(.vertical, 10)
     .accessibilityElement(children: .combine)
     .accessibilityLabel(
-      entry.type == "scratchpad"
-        ? "\(entry.title), Note, \(entry.previewText), \(entry.dateText)"
-        : "\(entry.title), \(entry.typeLabel), \(entry.amountText), \(entry.dateText)"
+      "\(entry.title), \(entry.typeLabel), \(entry.amountText), \(entry.dateText)"
     )
   }
 }

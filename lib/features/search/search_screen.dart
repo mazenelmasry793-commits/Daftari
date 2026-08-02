@@ -90,8 +90,7 @@ class SearchResultsBody extends ConsumerWidget {
       return const EmptyState(
         icon: Icons.manage_search_rounded,
         title: 'Search your debts',
-        message:
-            'Find titles and notes across owed items and scratchpad entries.',
+        message: 'Find titles and notes across your owed items.',
       );
     }
 
@@ -123,9 +122,6 @@ class SearchResultsBody extends ConsumerWidget {
           EntryType.owedByMe: results
               .where((entry) => entry.type == EntryType.owedByMe)
               .toList(),
-          EntryType.scratchpad: results
-              .where((entry) => entry.type == EntryType.scratchpad)
-              .toList(),
         };
 
         return Column(
@@ -141,7 +137,10 @@ class SearchResultsBody extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 12),
-            for (final section in EntryType.values)
+            for (final section in const [
+              EntryType.owedToMe,
+              EntryType.owedByMe,
+            ])
               if (sections[section]!.isNotEmpty) ...[
                 SectionHeader(title: section.label),
                 const SizedBox(height: 10),

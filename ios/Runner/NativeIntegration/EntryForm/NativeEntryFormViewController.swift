@@ -214,12 +214,11 @@ final class NativeEntryFormViewController: UIViewController, UITextFieldDelegate
   private func isValid() -> Bool {
     guard !(titleField.text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "").isEmpty else { return false }
     let amount = parsedAmount()
-    if entryType != .scratchpad && (amount == nil || amount ?? 0 <= 0) { return false }
+    if amount == nil || amount ?? 0 <= 0 { return false }
     if let paidAmount = initialValues?.paidAmount,
-       entryType != .scratchpad,
        let amount,
        amount < paidAmount { return false }
-    return amount == nil || amount ?? 0 > 0
+    return amount ?? 0 > 0
   }
 
   private func updateSaveButton() {

@@ -14,8 +14,6 @@ final class NativeNavigationCoordinator {
   private var nativeEntryHosts: [NativeEntryListType: UIViewController] = [:]
   private var nativeEntryDetailsBridge: NativeEntryDetailsBridge?
   private var nativeEntryDetailsHost: UIViewController?
-  private var nativeNoteDetailsBridge: NativeNoteDetailsBridge?
-  private var nativeNoteDetailsHost: UIViewController?
   private var nativeSettingsHost: UIViewController?
   private var nativeTrashHost: UIViewController?
   private var settingsButton: NativeSettingsButtonView?
@@ -32,7 +30,6 @@ final class NativeNavigationCoordinator {
   private var navigationVisible = true
   private var flutterDetailVisible = false
   private var nativeDetailVisible = false
-  private var nativeNoteDetailVisible = false
   private var nativeSettingsVisible = false
   private var nativeTrashVisible = false
   private var trashActionInFlight = false
@@ -75,11 +72,7 @@ final class NativeNavigationCoordinator {
         },
         onEntrySelected: { [weak self] id, type in
           guard let self else { return }
-          if type == NativeEntryListType.scratchpad.rawValue {
-            self.openNativeNoteDetails(id: id)
-          } else {
-            self.openNativeDetails(id: id)
-          }
+          self.openNativeDetails(id: id)
         }
       )
       self.dashboardBridge = dashboardBridge
@@ -97,7 +90,7 @@ final class NativeNavigationCoordinator {
       nativeDashboardInstalled = true
       let entriesBridge = NativeEntriesBridge(binaryMessenger: rootViewController.binaryMessenger)
       self.entriesBridge = entriesBridge
-      for type in [NativeEntryListType.owedToMe, .owedByMe, .scratchpad] {
+      for type in [NativeEntryListType.owedToMe, .owedByMe] {
         let host = NativeEntriesHostController(
           store: entriesBridge.store,
           type: type,
@@ -108,12 +101,7 @@ final class NativeNavigationCoordinator {
             self?.openNativeSettings()
           },
           onEntrySelected: { [weak self] id in
-            guard let self else { return }
-            if type == .scratchpad {
-              self.openNativeNoteDetails(id: id)
-            } else {
-              self.openNativeDetails(id: id)
-            }
+            self?.openNativeDetails(id: id)
           }
         )
         rootViewController.addChild(host)
@@ -169,14 +157,10 @@ final class NativeNavigationCoordinator {
         onSearchModeChanged: { [weak self] active in
           self?.applyNativeSearchModeChange(active)
         },
-        onSearchResultSelected: { [weak self] id, type in
+        onSearchResultSelected: { [weak self] id, _ in
           guard let self else { return }
           self.searchState = .inactive
-          if type == "scratchpad" {
-            self.openNativeNoteDetails(id: id)
-          } else {
-            self.openNativeDetails(id: id)
-          }
+          self.openNativeDetails(id: id)
         }
       )
       rootViewController.addChild(systemTabs.viewController)
@@ -237,30 +221,6 @@ final class NativeNavigationCoordinator {
       setHost(entryDetailsHost, visible: false)
       self.nativeEntryDetailsBridge = entryDetailsBridge
       self.nativeEntryDetailsHost = entryDetailsHost
-
-      let noteDetailsBridge = NativeNoteDetailsBridge(
-        binaryMessenger: rootViewController.binaryMessenger
-      )
-      noteDetailsBridge.onRequestClose = { [weak self] in
-        self?.closeNativeNoteDetails()
-      }
-      let noteDetailsHost = NativeNoteDetailsHostController(
-        bridge: noteDetailsBridge,
-        onBack: { [weak self] in self?.closeNativeNoteDetails() }
-      )
-      rootViewController.addChild(noteDetailsHost)
-      rootViewController.view.addSubview(noteDetailsHost.view)
-      noteDetailsHost.view.translatesAutoresizingMaskIntoConstraints = false
-      NSLayoutConstraint.activate([
-        noteDetailsHost.view.leadingAnchor.constraint(equalTo: rootViewController.view.leadingAnchor),
-        noteDetailsHost.view.trailingAnchor.constraint(equalTo: rootViewController.view.trailingAnchor),
-        noteDetailsHost.view.topAnchor.constraint(equalTo: rootViewController.view.topAnchor),
-        noteDetailsHost.view.bottomAnchor.constraint(equalTo: rootViewController.view.bottomAnchor),
-      ])
-      noteDetailsHost.didMove(toParent: rootViewController)
-      setHost(noteDetailsHost, visible: false)
-      self.nativeNoteDetailsBridge = noteDetailsBridge
-      self.nativeNoteDetailsHost = noteDetailsHost
 
       let settingsHost = NativeSettingsHostController(
         onBack: { [weak self] in self?.closeNativeSettings() },
@@ -344,7 +304,7 @@ final class NativeNavigationCoordinator {
         navigationView?.setSelectedTab(arguments?["index"] as? Int ?? 0)
         if #available(iOS 26.0, *) {
           if let index = arguments?["index"] as? Int {
-            guard (0...3).contains(index) else {
+            guard (0...2).contains(index) else {
               result(nil)
               return
             }
@@ -353,7 +313,7 @@ final class NativeNavigationCoordinator {
               return
             }
             self?.selectedTabIndex = index
-            if (0...3).contains(index) {
+            if (0...2).contains(index) {
               self?.lastContentTabIndex = index
             }
             (self?.systemTabBarController as? DaftariSystemTabBarController)?.setSelectedTab(index)
@@ -441,7 +401,6 @@ final class NativeNavigationCoordinator {
         homeSelected &&
         !flutterDetailVisible &&
         !nativeDetailVisible &&
-        !nativeNoteDetailVisible &&
         !nativeSettingsVisible &&
         !nativeTrashVisible
       let shouldShowLegacyHeader =
@@ -457,7 +416,6 @@ final class NativeNavigationCoordinator {
         switch type {
         case .owedToMe: tabIndex = 1
         case .owedByMe: tabIndex = 2
-        case .scratchpad: tabIndex = 3
         }
         let shouldShowEntryHost = (
           nativeDashboardInstalled &&
@@ -465,7 +423,6 @@ final class NativeNavigationCoordinator {
           visibleContentTabIndex == tabIndex &&
           !flutterDetailVisible &&
           !nativeDetailVisible &&
-          !nativeNoteDetailVisible &&
           !nativeSettingsVisible &&
           !nativeTrashVisible
         )
@@ -476,7 +433,6 @@ final class NativeNavigationCoordinator {
         )
       }
       setHost(nativeEntryDetailsHost, visible: nativeDetailVisible, interactive: nativeDetailVisible)
-      setHost(nativeNoteDetailsHost, visible: nativeNoteDetailVisible, interactive: nativeNoteDetailVisible)
       setHost(nativeSettingsHost, visible: nativeSettingsVisible, interactive: nativeSettingsVisible)
       setHost(nativeTrashHost, visible: nativeTrashVisible, interactive: nativeTrashVisible)
       (navigationBarHost as? DaftariNavigationBarHostViewController)?.setVisible(
@@ -566,7 +522,7 @@ final class NativeNavigationCoordinator {
 
   @available(iOS 26.0, *)
   private func handleNativeTabSelection(_ index: Int, channel: FlutterMethodChannel?) {
-    guard (0...3).contains(index) else { return }
+    guard (0...2).contains(index) else { return }
     // UISearchTab can emit the previously selected tab before its search
     // controller has finished dismissing. Search lifecycle reconciliation is
     // owned by didDismissSearchController, so this callback must not close or
@@ -614,22 +570,8 @@ final class NativeNavigationCoordinator {
   }
 
   @available(iOS 26.0, *)
-  private func openNativeNoteDetails(id: String) {
-    guard !nativeDetailVisible, !nativeNoteDetailVisible, !flutterDetailVisible,
-          let detailsHost = nativeNoteDetailsHost,
-          let detailsBridge = nativeNoteDetailsBridge else { return }
-    nativeNoteDetailVisible = true
-    navigationVisible = false
-    (systemTabBarController as? DaftariSystemTabBarController)?.setNavigationVisible(false, animated: true)
-    setHost(detailsHost, visible: true, interactive: true)
-    rootViewController.view.bringSubviewToFront(detailsHost.view)
-    detailsBridge.load(id: id)
-    updateNativeSurfaceVisibility(animated: true)
-  }
-
-  @available(iOS 26.0, *)
   private func openNativeSettings() {
-    guard !nativeSettingsVisible, !nativeDetailVisible, !nativeNoteDetailVisible,
+    guard !nativeSettingsVisible, !nativeDetailVisible,
           !flutterDetailVisible, let settingsHost = nativeSettingsHost else { return }
     nativeSettingsVisible = true
     navigationVisible = false
@@ -651,7 +593,7 @@ final class NativeNavigationCoordinator {
 
   @available(iOS 26.0, *)
   private func restoreNativeSettings() {
-    guard !nativeDetailVisible, !nativeNoteDetailVisible, !flutterDetailVisible,
+    guard !nativeDetailVisible, !flutterDetailVisible,
           let settingsHost = nativeSettingsHost else { return }
     nativeSettingsVisible = true
     navigationVisible = false
@@ -789,16 +731,6 @@ final class NativeNavigationCoordinator {
     nativeDetailVisible = false
     navigationVisible = true
     setHost(nativeEntryDetailsHost, visible: false)
-    (systemTabBarController as? DaftariSystemTabBarController)?.setNavigationVisible(true, animated: true)
-    updateNativeSurfaceVisibility(animated: true)
-  }
-
-  @available(iOS 26.0, *)
-  private func closeNativeNoteDetails() {
-    guard nativeNoteDetailVisible else { return }
-    nativeNoteDetailVisible = false
-    navigationVisible = true
-    setHost(nativeNoteDetailsHost, visible: false)
     (systemTabBarController as? DaftariSystemTabBarController)?.setNavigationVisible(true, animated: true)
     updateNativeSurfaceVisibility(animated: true)
   }

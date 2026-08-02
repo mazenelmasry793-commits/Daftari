@@ -1,4 +1,5 @@
 import 'package:debt_tracker/data/local/app_database.dart';
+import 'package:debt_tracker/data/local/remove_legacy_scratchpad_migration.dart';
 import 'package:debt_tracker/data/models/entry.dart';
 import 'package:debt_tracker/data/repositories/entry_repository_factory.dart';
 import 'package:debt_tracker/domain/repositories/entry_repository.dart';
@@ -37,6 +38,7 @@ DashboardTotals calculateDashboardTotals(Iterable<Entry> entries) {
         iOwe += remaining;
         break;
       case EntryType.scratchpad:
+        // Legacy persisted value; records are removed by the startup migration.
         break;
     }
   }
@@ -46,12 +48,17 @@ DashboardTotals calculateDashboardTotals(Iterable<Entry> entries) {
 
 final appBootstrapProvider = FutureProvider<AppBootstrap>((ref) async {
   final isar = await AppDatabase.open();
+  await removeLegacyScratchpadRecords(isar);
   final entryRepository = createEntryRepository(isar: isar);
   return AppBootstrap(isar: isar, entryRepository: entryRepository);
 });
 
 final entryRepositoryProvider = Provider<EntryRepository>((ref) {
   return ref.watch(appBootstrapProvider).requireValue.entryRepository;
+});
+
+final appRepositoryReadyProvider = FutureProvider<EntryRepository>((ref) async {
+  return (await ref.watch(appBootstrapProvider.future)).entryRepository;
 });
 
 final recentEntriesProvider = StreamProvider<List<Entry>>((ref) {
@@ -76,12 +83,6 @@ final owedByMeEntriesProvider = StreamProvider<List<Entry>>((ref) {
   return ref
       .watch(entryRepositoryProvider)
       .watchActiveByType(EntryType.owedByMe);
-});
-
-final scratchpadEntriesProvider = StreamProvider<List<Entry>>((ref) {
-  return ref
-      .watch(entryRepositoryProvider)
-      .watchActiveByType(EntryType.scratchpad);
 });
 
 final trashEntriesProvider = StreamProvider<List<Entry>>((ref) {
