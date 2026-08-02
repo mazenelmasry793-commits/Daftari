@@ -59,9 +59,6 @@ final class NativeSearchBarView: UIView, UISearchBarDelegate {
     assert(!isHidden && alpha == 1 && transform == .identity)
     assert(frame.width > 0 && frame.height > 0)
     assert(searchBar.searchTextField.frame.width > 0)
-    #if DEBUG
-    print("[NativeSearch] searching outer=\(frame) field=\(searchBar.searchTextField.frame) alpha=\(alpha) hidden=\(isHidden) firstResponder=\(searchBar.searchTextField.isFirstResponder)")
-    #endif
     focusSearch()
   }
 

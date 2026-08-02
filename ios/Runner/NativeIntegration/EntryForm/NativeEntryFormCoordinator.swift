@@ -135,7 +135,7 @@ final class NativeEntryFormCoordinator {
       if #available(iOS 16.0, *) {
         sheet.detents = [
           .custom(identifier: .init("nativeScratchpadCompact")) { context in
-            min(430, context.maximumDetentValue)
+            min(520, context.maximumDetentValue)
           },
         ]
       } else {

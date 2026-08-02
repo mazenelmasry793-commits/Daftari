@@ -22,7 +22,7 @@ final class DaftariSystemTabBarController: NSObject, UITabBarControllerDelegate 
   private let searchNavigationController: UINavigationController
   private let searchTab: UISearchTab
   private var tabsByIdentifier: [String: Int] = [:]
-  private var searchIsActive = false
+  private var suppressTabSelectionCallback = false
 
   init(
     onTabSelected: @escaping (Int) -> Void,
@@ -105,11 +105,14 @@ final class DaftariSystemTabBarController: NSObject, UITabBarControllerDelegate 
 
   func setSelectedTab(_ index: Int) {
     guard index >= 0, index < viewController.tabs.count else { return }
+    suppressTabSelectionCallback = true
     viewController.selectedTab = viewController.tabs[index]
+    suppressTabSelectionCallback = false
   }
 
   func activateSearchTab() {
-    guard !searchIsActive else { return }
+    guard viewController.selectedTab !== searchTab else { return }
+    searchHost.prepareForActivation()
     viewController.selectedTab = searchTab
   }
 
@@ -126,18 +129,19 @@ final class DaftariSystemTabBarController: NSObject, UITabBarControllerDelegate 
     didSelectTab selectedTab: UITab,
     previousTab: UITab?
   ) {
+    guard !suppressTabSelectionCallback else { return }
     guard let index = tabsByIdentifier[selectedTab.identifier] else { return }
     if selectedTab.identifier == searchTab.identifier {
       onSearchActivated()
-      setSearchActive(true)
     } else {
       onTabSelected(index)
     }
   }
 
   private func setSearchActive(_ active: Bool) {
-    guard searchIsActive != active else { return }
-    searchIsActive = active
+    // UIKit can report the same presentation state more than once when a
+    // reused UISearchController is activated again. The coordinator owns the
+    // lifecycle transition guard; this callback remains notification-only.
     onSearchModeChanged(active)
   }
 }

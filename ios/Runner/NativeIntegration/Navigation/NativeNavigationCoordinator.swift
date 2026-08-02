@@ -20,7 +20,15 @@ final class NativeNavigationCoordinator {
   private var nativeTrashHost: UIViewController?
   private var settingsButton: NativeSettingsButtonView?
   private var selectedTabIndex = 0
-  private var searchModeActive = false
+  private enum SearchLifecycleState {
+    case inactive
+    case presenting
+    case active
+    case dismissing
+  }
+  private var searchState: SearchLifecycleState = .inactive
+  private var lastContentTabIndex = 0
+  private var searchModeActive: Bool { searchState != .inactive }
   private var navigationVisible = true
   private var flutterDetailVisible = false
   private var nativeDetailVisible = false
@@ -138,8 +146,7 @@ final class NativeNavigationCoordinator {
         channel?.invokeMethod("nativeSearchDismissed", arguments: nil)
       },
       onSearchModeChanged: { [weak self] active in
-        self?.searchModeActive = active
-        self?.updateNativeSurfaceVisibility(animated: true)
+        self?.updateLegacySearchMode(active)
       }
     )
     settingsButton?.onSettingsRequested = { [weak channel] in
@@ -148,33 +155,23 @@ final class NativeNavigationCoordinator {
     if #available(iOS 26.0, *) {
       let systemTabs = DaftariSystemTabBarController(
         onTabSelected: { [weak self, weak channel] index in
-          self?.selectedTabIndex = index
-          self?.searchModeActive = false
-          self?.updateNativeSurfaceVisibility(animated: true)
-          channel?.invokeMethod(
-            NativeChannelConstants.NavigationMethod.nativeTabSelected,
-            arguments: ["index": index]
-          )
+          self?.handleNativeTabSelection(index, channel: channel)
         },
         onSearchActivated: { [weak self, weak channel] in
-          self?.selectedTabIndex = 4
-          self?.searchModeActive = true
-          self?.updateNativeSurfaceVisibility(animated: true)
-          channel?.invokeMethod("nativeSearchActivated", arguments: nil)
+          self?.beginNativeSearchActivation(channel: channel)
         },
         onSearchQueryChanged: { [weak channel] query in
           channel?.invokeMethod("nativeSearchQueryChanged", arguments: query)
         },
-        onSearchDismissed: { [weak channel] in
-          channel?.invokeMethod("nativeSearchDismissed", arguments: nil)
+        onSearchDismissed: { [weak self, weak channel] in
+          self?.finishNativeSearchDismissal(channel: channel)
         },
         onSearchModeChanged: { [weak self] active in
-          self?.searchModeActive = active
-          self?.updateNativeSurfaceVisibility(animated: true)
+          self?.applyNativeSearchModeChange(active)
         },
         onSearchResultSelected: { [weak self] id, type in
           guard let self else { return }
-          self.searchModeActive = false
+          self.searchState = .inactive
           if type == "scratchpad" {
             self.openNativeNoteDetails(id: id)
           } else {
@@ -342,6 +339,9 @@ final class NativeNavigationCoordinator {
         if #available(iOS 26.0, *) {
           if let index = arguments?["index"] as? Int {
             self?.selectedTabIndex = index
+            if (0...3).contains(index) {
+              self?.lastContentTabIndex = index
+            }
             (self?.systemTabBarController as? DaftariSystemTabBarController)?.setSelectedTab(index)
             self?.updateNativeSurfaceVisibility(animated: false)
           }
@@ -478,6 +478,66 @@ final class NativeNavigationCoordinator {
         animated: animated
       )
     }
+  }
+
+  @available(iOS 26.0, *)
+  private func applyNativeSearchModeChange(_ active: Bool) {
+    if active {
+      guard searchState == .presenting else { return }
+      searchState = .active
+      if let systemTabs = systemTabBarController as? DaftariSystemTabBarController {
+        // The system search host is already being presented by UIKit at this
+        // point. Keep it above Flutter before changing the underlying surfaces.
+        rootViewController.view.bringSubviewToFront(systemTabs.viewController.view)
+      }
+      // UISearchController owns the transition animation. Avoid a second
+      // native fade here; this is one ordered visibility transaction.
+      updateNativeSurfaceVisibility(animated: false)
+      return
+    }
+
+    guard searchState == .active else { return }
+    searchState = .dismissing
+    selectedTabIndex = lastContentTabIndex
+    (systemTabBarController as? DaftariSystemTabBarController)?.setSelectedTab(lastContentTabIndex)
+  }
+
+  private func updateLegacySearchMode(_ active: Bool) {
+    guard #unavailable(iOS 26.0) else { return }
+    guard active != searchModeActive else { return }
+    searchState = active ? .active : .inactive
+    updateNativeSurfaceVisibility(animated: true)
+  }
+
+  @available(iOS 26.0, *)
+  private func beginNativeSearchActivation(channel: FlutterMethodChannel?) {
+    guard searchState == .inactive else { return }
+    searchState = .presenting
+    selectedTabIndex = 4
+    channel?.invokeMethod("nativeSearchActivated", arguments: nil)
+  }
+
+  @available(iOS 26.0, *)
+  private func handleNativeTabSelection(_ index: Int, channel: FlutterMethodChannel?) {
+    guard (0...3).contains(index) else { return }
+    lastContentTabIndex = index
+    selectedTabIndex = index
+    if searchState != .inactive {
+      searchState = .inactive
+    }
+    updateNativeSurfaceVisibility(animated: false)
+    channel?.invokeMethod(
+      NativeChannelConstants.NavigationMethod.nativeTabSelected,
+      arguments: ["index": index]
+    )
+  }
+
+  @available(iOS 26.0, *)
+  private func finishNativeSearchDismissal(channel: FlutterMethodChannel?) {
+    guard searchState == .dismissing else { return }
+    searchState = .inactive
+    updateNativeSurfaceVisibility(animated: false)
+    channel?.invokeMethod("nativeSearchDismissed", arguments: nil)
   }
 
   @available(iOS 26.0, *)

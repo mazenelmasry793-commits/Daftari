@@ -39,6 +39,7 @@ class _AppShellState extends ConsumerState<AppShell> {
   bool _searchActive = false;
   String _searchQuery = '';
   int _searchPreviousIndex = 0;
+  int _lastContentTabIndex = 0;
   bool _nativeDetailOpening = false;
 
   final _titles = const <String>[
@@ -161,7 +162,7 @@ class _AppShellState extends ConsumerState<AppShell> {
 
   void _enterSearchFromNative() {
     if (_searchActive) return;
-    _searchPreviousIndex = _index;
+    _searchPreviousIndex = _lastContentTabIndex;
     setState(() {
       _searchActive = true;
       _searchQuery = '';
@@ -183,6 +184,7 @@ class _AppShellState extends ConsumerState<AppShell> {
       _searchActive = false;
       _searchQuery = '';
       _index = restoredIndex;
+      _lastContentTabIndex = restoredIndex;
     });
     unawaited(iosNavigationChannel.setSearchVisible(false));
     unawaited(iosNavigationChannel.setSelectedTab(restoredIndex));
@@ -830,7 +832,10 @@ class _AppShellState extends ConsumerState<AppShell> {
       return;
     }
     if (_index == index) return;
-    setState(() => _index = index);
+    setState(() {
+      _index = index;
+      _lastContentTabIndex = index;
+    });
     unawaited(iosNavigationChannel.setSelectedTab(index));
   }
 
@@ -869,7 +874,7 @@ class _AppShellState extends ConsumerState<AppShell> {
 
     return Scaffold(
       extendBody: true,
-      appBar: _searchActive
+      appBar: _searchActive && !useNativeIosNavigation
           ? null
           : AppBar(
               title: Text(_titles[_index]),
@@ -890,7 +895,7 @@ class _AppShellState extends ConsumerState<AppShell> {
             ),
       body: Stack(
         children: [
-          if (_searchActive)
+          if (_searchActive && !useNativeIosNavigation)
             SafeArea(
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 64, 16, 120),

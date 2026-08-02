@@ -30,7 +30,8 @@ final class DaftariSearchHostViewController: UIViewController, UISearchResultsUp
 
   override func viewDidLoad() {
     super.viewDidLoad()
-    view.backgroundColor = .clear
+    view.backgroundColor = .systemBackground
+    view.isOpaque = true
     definesPresentationContext = true
     searchController.searchResultsUpdater = self
     searchController.delegate = self
@@ -43,6 +44,8 @@ final class DaftariSearchHostViewController: UIViewController, UISearchResultsUp
         rootView: NativeSearchView(store: store, onResultSelected: onResultSelected)
       )
       hostingController = host
+      host.view.backgroundColor = .systemBackground
+      host.view.isOpaque = true
       addChild(host)
       view.insertSubview(host.view, at: 0)
       host.view.translatesAutoresizingMaskIntoConstraints = false
@@ -63,6 +66,14 @@ final class DaftariSearchHostViewController: UIViewController, UISearchResultsUp
   }
 
   func applyResults(payload: Any?) { store.apply(payload: payload) }
+
+  func prepareForActivation() {
+    searchController.searchBar.text = ""
+    searchController.searchBar.resignFirstResponder()
+    store.setQuery("")
+    view.alpha = 1
+    view.isHidden = false
+  }
 
   func willPresentSearchController(_ searchController: UISearchController) {
     onSearchBegan?()

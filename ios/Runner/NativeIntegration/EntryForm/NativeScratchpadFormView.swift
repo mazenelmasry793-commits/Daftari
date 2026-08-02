@@ -89,7 +89,7 @@ struct NativeScratchpadFormView: View {
         }
       }
     }
-    .presentationDetents([.height(430)])
+    .presentationDetents([.height(520)])
     .presentationDragIndicator(.visible)
     .presentationCornerRadius(28)
   }
