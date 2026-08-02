@@ -68,7 +68,7 @@ final class NativeNavigationCoordinator {
       let dashboardHost = NativeDashboardHostController(
         dashboardBridge: dashboardBridge,
         onAddEntryTypeSelected: { [weak self] type in
-          _ = self?.sheetCoordinator.presentNativeEntryForm(type: type)
+          self?.presentNativeEntryFormAfterMenu(type: type)
         },
         onSettingsRequested: { [weak self] in
           self?.openNativeSettings()
@@ -102,7 +102,7 @@ final class NativeNavigationCoordinator {
           store: entriesBridge.store,
           type: type,
           onAdd: { [weak self] in
-            _ = self?.sheetCoordinator.presentNativeEntryForm(type: type.rawValue)
+            self?.presentNativeEntryFormAfterMenu(type: type.rawValue)
           },
           onSettings: { [weak self] in
             self?.openNativeSettings()
@@ -137,7 +137,7 @@ final class NativeNavigationCoordinator {
         )
       },
       onAddEntryTypeSelected: { [weak self] type in
-        _ = self?.sheetCoordinator.presentNativeEntryForm(type: type)
+        self?.presentNativeEntryFormAfterMenu(type: type)
       },
       onSearchQueryChanged: { [weak channel] query in
         channel?.invokeMethod("nativeSearchQueryChanged", arguments: query)
@@ -195,7 +195,7 @@ final class NativeNavigationCoordinator {
           channel?.invokeMethod(NativeChannelConstants.NavigationMethod.openSettings, arguments: nil)
         },
         onAddEntryTypeSelected: { [weak self] type in
-          _ = self?.sheetCoordinator.presentNativeEntryForm(type: type)
+          self?.presentNativeEntryFormAfterMenu(type: type)
         }
       )
       rootViewController.addChild(navigationBarHost)
@@ -515,6 +515,13 @@ final class NativeNavigationCoordinator {
     view.isUserInteractionEnabled = visible && interactive
   }
 
+  private func presentNativeEntryFormAfterMenu(type: String) {
+    DispatchQueue.main.async { [weak self] in
+      guard let self else { return }
+      _ = self.sheetCoordinator.presentNativeEntryForm(type: type)
+    }
+  }
+
   @available(iOS 26.0, *)
   private func applyNativeSearchModeChange(_ active: Bool) {
     if active {
@@ -533,8 +540,6 @@ final class NativeNavigationCoordinator {
 
     guard searchState == .active else { return }
     searchState = .dismissing
-    selectedTabIndex = lastContentTabIndex
-    (systemTabBarController as? DaftariSystemTabBarController)?.setSelectedTab(lastContentTabIndex)
   }
 
   private func updateLegacySearchMode(_ active: Bool) {
@@ -569,9 +574,18 @@ final class NativeNavigationCoordinator {
   @available(iOS 26.0, *)
   private func finishNativeSearchDismissal(channel: FlutterMethodChannel?) {
     guard searchState == .dismissing else { return }
-    searchState = .inactive
-    updateNativeSurfaceVisibility(animated: false)
-    channel?.invokeMethod("nativeSearchDismissed", arguments: nil)
+    DispatchQueue.main.async { [weak self, weak channel] in
+      guard let self, self.searchState == .dismissing else { return }
+      // UIKit has completed UISearchController dismissal. Restore the native
+      // tab exactly once, then reconcile host visibility and interaction.
+      self.selectedTabIndex = self.lastContentTabIndex
+      (self.systemTabBarController as? DaftariSystemTabBarController)?.setSelectedTab(
+        self.lastContentTabIndex
+      )
+      self.searchState = .inactive
+      self.updateNativeSurfaceVisibility(animated: false)
+      channel?.invokeMethod("nativeSearchDismissed", arguments: nil)
+    }
   }
 
   @available(iOS 26.0, *)

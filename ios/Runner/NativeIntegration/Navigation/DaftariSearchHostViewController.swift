@@ -82,7 +82,10 @@ final class DaftariSearchHostViewController: UIViewController, UISearchResultsUp
   func didDismissSearchController(_ searchController: UISearchController) {
     searchController.searchBar.text = ""
     onQueryChanged("")
-    onSearchEnded?()
     onDismissed()
+  }
+
+  func willDismissSearchController(_ searchController: UISearchController) {
+    onSearchEnded?()
   }
 }

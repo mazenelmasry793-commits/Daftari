@@ -168,11 +168,16 @@ final class NativeSheetCoordinator: NSObject, UIAdaptivePresentationControllerDe
       let root = window.rootViewController else {
       return nil
     }
-    return topViewController(from: root)
+    let top = topViewController(from: root)
+    guard top.viewIfLoaded?.window != nil,
+          !top.isBeingDismissed,
+          !top.isBeingPresented else { return nil }
+    return top
   }
 
   private func topViewController(from viewController: UIViewController) -> UIViewController {
-    if let presented = viewController.presentedViewController {
+    if let presented = viewController.presentedViewController,
+       !presented.isBeingDismissed {
       return topViewController(from: presented)
     }
     if let navigationController = viewController as? UINavigationController,

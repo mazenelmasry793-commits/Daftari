@@ -15,7 +15,15 @@ final class NativeEntryFormCoordinator {
     messenger: FlutterBinaryMessenger,
     onDismiss: (() -> Void)? = nil
   ) -> Bool {
-    guard !isPresented, let entryType = NativeEntryFormType(rawValue: type) else { return false }
+    recoverStalePresentationIfNeeded()
+    guard !isPresented,
+          let entryType = NativeEntryFormType(rawValue: type),
+          presenter.viewIfLoaded?.window != nil,
+          !presenter.isBeingDismissed,
+          !presenter.isBeingPresented else {
+      reset()
+      return false
+    }
     isPresented = true
 
     if entryType == .scratchpad, initialValues == nil, #available(iOS 16.4, *) {
@@ -237,6 +245,17 @@ final class NativeEntryFormCoordinator {
     presentedNavigationController = nil
     presentedViewController = nil
     presentationDelegate = nil
+  }
+
+  private func recoverStalePresentationIfNeeded() {
+    guard isPresented else { return }
+    guard let presentedViewController,
+          presentedViewController.presentingViewController != nil,
+          presentedViewController.viewIfLoaded?.window != nil,
+          !presentedViewController.isBeingDismissed else {
+      reset()
+      return
+    }
   }
 }
 

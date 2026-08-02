@@ -22,7 +22,7 @@ final class DaftariSystemTabBarController: NSObject, UITabBarControllerDelegate 
   private let searchNavigationController: UINavigationController
   private let searchTab: UISearchTab
   private var tabsByIdentifier: [String: Int] = [:]
-  private var suppressTabSelectionCallback = false
+  private var pendingProgrammaticTabIndex: Int?
 
   init(
     onTabSelected: @escaping (Int) -> Void,
@@ -110,9 +110,8 @@ final class DaftariSystemTabBarController: NSObject, UITabBarControllerDelegate 
     guard index >= 0, index < viewController.tabs.count else { return }
     let target = viewController.tabs[index]
     guard viewController.selectedTab !== target else { return }
-    suppressTabSelectionCallback = true
+    pendingProgrammaticTabIndex = index
     viewController.selectedTab = target
-    suppressTabSelectionCallback = false
   }
 
   func activateSearchTab() {
@@ -134,8 +133,14 @@ final class DaftariSystemTabBarController: NSObject, UITabBarControllerDelegate 
     didSelectTab selectedTab: UITab,
     previousTab: UITab?
   ) {
-    guard !suppressTabSelectionCallback else { return }
     guard let index = tabsByIdentifier[selectedTab.identifier] else { return }
+    if pendingProgrammaticTabIndex == index {
+      pendingProgrammaticTabIndex = nil
+      return
+    }
+    if pendingProgrammaticTabIndex != nil {
+      pendingProgrammaticTabIndex = nil
+    }
     if selectedTab.identifier == searchTab.identifier {
       onSearchActivated()
     } else {
