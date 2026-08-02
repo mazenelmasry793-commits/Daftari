@@ -762,12 +762,25 @@ final class NativeNavigationCoordinator {
   @available(iOS 26.0, *)
   private func openNativeEdit(snapshot: NativeEntryDetailsSnapshot) {
     guard nativeDetailVisible else { return }
-    let presented = sheetCoordinator.presentNativeEntryEdit(snapshot: snapshot) { [weak self] in
-      self?.finishNativeDetailsAction(id: snapshot.id, close: false)
-    }
+    let presented = sheetCoordinator.presentNativeEntryEdit(
+      snapshot: snapshot,
+      onSaveSucceeded: { [weak self] in
+        self?.refreshNativeDetailsAfterEdit(id: snapshot.id)
+      },
+      onDismiss: {}
+    )
     if !presented {
-      finishNativeDetailsAction(id: snapshot.id, close: false)
+      return
     }
+  }
+
+  @available(iOS 26.0, *)
+  private func refreshNativeDetailsAfterEdit(id: String) {
+    guard nativeDetailVisible,
+          !flutterDetailVisible,
+          let detailsBridge = nativeEntryDetailsBridge,
+          detailsBridge.currentEntryID == id else { return }
+    detailsBridge.load(id: id)
   }
 
   deinit {

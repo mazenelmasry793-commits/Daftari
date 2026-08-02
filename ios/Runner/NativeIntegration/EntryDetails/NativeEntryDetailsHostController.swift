@@ -33,6 +33,21 @@ final class NativeEntryDetailsAlertPresenter {
     }
   }
 
+  func presentDeletePayment(entryID: String, paymentID: Int) {
+    presentAlert(
+      title: "Delete this payment?",
+      message: "This payment will be removed from the entry.",
+      confirmTitle: "Delete Payment",
+      confirmStyle: .destructive
+    ) { [weak self] in
+      self?.bridge.perform(
+        action: .deletePayment,
+        id: entryID,
+        paymentID: paymentID
+      )
+    }
+  }
+
   private func presentAlert(
     title: String,
     message: String,
@@ -98,6 +113,12 @@ final class NativeEntryDetailsHostController: UIViewController {
         },
         onRequestDelete: { entryID in
           alertPresenter.presentDelete(entryID: entryID)
+        },
+        onRequestDeletePayment: { entryID, paymentID in
+          alertPresenter.presentDeletePayment(
+            entryID: entryID,
+            paymentID: paymentID
+          )
         }
       )
     )

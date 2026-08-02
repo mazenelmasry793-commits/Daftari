@@ -10,12 +10,15 @@ final class NativeEntryFormCoordinator {
   private weak var presentedViewController: UIViewController?
   private var presentationDelegate: PresentationDelegate?
   private var isPresented = false
+  private var didNotifySaveSucceeded = false
+  private var didNotifyDismiss = false
 
   func present(
     type: String,
     initialValues: NativeEntryFormInitialValues? = nil,
     from presenter: UIViewController,
     messenger: FlutterBinaryMessenger,
+    onSaveSucceeded: (() -> Void)? = nil,
     onDismiss: (() -> Void)? = nil
   ) -> Bool {
     recoverStalePresentationIfNeeded()
@@ -28,6 +31,8 @@ final class NativeEntryFormCoordinator {
       return false
     }
     isPresented = true
+    didNotifySaveSucceeded = false
+    didNotifyDismiss = false
 
     if #available(iOS 16.4, *) {
       return presentDebtForm(
@@ -35,6 +40,7 @@ final class NativeEntryFormCoordinator {
         initialValues: initialValues,
         from: presenter,
         messenger: messenger,
+        onSaveSucceeded: onSaveSucceeded,
         onDismiss: onDismiss
       )
     }
@@ -53,16 +59,14 @@ final class NativeEntryFormCoordinator {
       ) { [weak self] result in
         let didSave = (result as? Bool) == true
         DispatchQueue.main.async {
-          completion(didSave)
           if didSave {
-            self?.reset()
+            self?.notifySaveSucceeded(onSaveSucceeded)
           }
+          completion(didSave)
         }
       }
       },
-      onDismiss: { [weak self] in
-        self?.reset()
-      }
+      onDismiss: {}
     )
     let navigationController = UINavigationController(rootViewController: formViewController)
     navigationController.modalPresentationStyle = .pageSheet
@@ -105,8 +109,7 @@ final class NativeEntryFormCoordinator {
       }
     }
     let presentationDelegate = PresentationDelegate { [weak self] in
-        self?.reset()
-        onDismiss?()
+      self?.finishDismissal(onDismiss: onDismiss)
     }
     self.presentationDelegate = presentationDelegate
     navigationController.presentationController?.delegate = presentationDelegate
@@ -126,6 +129,7 @@ final class NativeEntryFormCoordinator {
     initialValues: NativeEntryFormInitialValues?,
     from presenter: UIViewController,
     messenger: FlutterBinaryMessenger,
+    onSaveSucceeded: (() -> Void)?,
     onDismiss: (() -> Void)?
   ) -> Bool {
     let formViewController = UIHostingController(
@@ -143,8 +147,8 @@ final class NativeEntryFormCoordinator {
           ) { result in
             let didSave = (result as? Bool) == true
             DispatchQueue.main.async {
+              if didSave { self?.notifySaveSucceeded(onSaveSucceeded) }
               completion(didSave)
-              if didSave { self?.reset() }
             }
           }
         }
@@ -167,8 +171,7 @@ final class NativeEntryFormCoordinator {
       sheet.preferredCornerRadius = 28
     }
     let presentationDelegate = PresentationDelegate { [weak self] in
-      self?.reset()
-      onDismiss?()
+      self?.finishDismissal(onDismiss: onDismiss)
     }
     self.presentationDelegate = presentationDelegate
     formViewController.presentationController?.delegate = presentationDelegate
@@ -187,6 +190,19 @@ final class NativeEntryFormCoordinator {
     presentedNavigationController = nil
     presentedViewController = nil
     presentationDelegate = nil
+  }
+
+  private func notifySaveSucceeded(_ callback: (() -> Void)?) {
+    guard !didNotifySaveSucceeded else { return }
+    didNotifySaveSucceeded = true
+    callback?()
+  }
+
+  private func finishDismissal(onDismiss: (() -> Void)?) {
+    guard !didNotifyDismiss else { return }
+    didNotifyDismiss = true
+    reset()
+    onDismiss?()
   }
 
   private func recoverStalePresentationIfNeeded() {

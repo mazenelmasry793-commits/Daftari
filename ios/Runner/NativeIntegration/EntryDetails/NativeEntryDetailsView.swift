@@ -8,6 +8,7 @@ struct NativeEntryDetailsView: View {
   let onEdit: (NativeEntryDetailsSnapshot) -> Void
   let onRequestMarkCompleted: (String) -> Void
   let onRequestDelete: (String) -> Void
+  let onRequestDeletePayment: (String, Int) -> Void
   @State private var paymentSheetPresented = false
   @State private var paymentSheetSaving = false
 
@@ -16,13 +17,15 @@ struct NativeEntryDetailsView: View {
     onBack: @escaping () -> Void,
     onEdit: @escaping (NativeEntryDetailsSnapshot) -> Void,
     onRequestMarkCompleted: @escaping (String) -> Void,
-    onRequestDelete: @escaping (String) -> Void
+    onRequestDelete: @escaping (String) -> Void,
+    onRequestDeletePayment: @escaping (String, Int) -> Void
   ) {
     self.bridge = bridge
     self.onBack = onBack
     self.onEdit = onEdit
     self.onRequestMarkCompleted = onRequestMarkCompleted
     self.onRequestDelete = onRequestDelete
+    self.onRequestDeletePayment = onRequestDeletePayment
     _store = ObservedObject(wrappedValue: bridge.store)
   }
 
@@ -166,7 +169,7 @@ struct NativeEntryDetailsView: View {
             payments: snapshot.payments,
             canDelete: !snapshot.isDeleted,
             onDelete: { paymentID in
-              bridge.perform(action: .deletePayment, id: snapshot.id, paymentID: paymentID)
+              onRequestDeletePayment(snapshot.id, paymentID)
             }
           )
         }

@@ -6,7 +6,6 @@ import 'package:debt_tracker/core/platform/native_dashboard_channel.dart';
 import 'package:debt_tracker/core/platform/native_entry_type.dart';
 import 'package:debt_tracker/core/platform/native_entry_details_channel.dart';
 import 'package:debt_tracker/core/platform/app_toast_service.dart';
-import 'package:debt_tracker/core/widgets/confirm_dialog.dart';
 import 'package:debt_tracker/core/platform/native_sheets_channel.dart';
 import 'package:debt_tracker/core/utils/formatters.dart';
 import 'package:debt_tracker/data/models/entry.dart';
@@ -25,6 +24,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:isar_community/isar.dart';
 import 'package:intl/intl.dart';
+
+/// Removes a payment by the native snapshot's index-based payment ID.
+/// Returns false without changing the entry when the ID is invalid.
+bool removeNativePaymentAtIndex(Entry entry, int paymentId) {
+  if (paymentId < 0 || paymentId >= entry.payments.length) return false;
+  entry.payments = List<Payment>.from(entry.payments)..removeAt(paymentId);
+  entry.updatedAt = DateTime.now();
+  if (entry.remainingAmount > 0 && entry.status == EntryStatus.completed) {
+    entry.status = EntryStatus.active;
+  }
+  return true;
+}
 
 class AppShell extends ConsumerStatefulWidget {
   const AppShell({super.key});
@@ -409,6 +420,7 @@ class _AppShellState extends ConsumerState<AppShell> {
     var entry = await repository.getById(int.parse(id));
     if (entry == null) return _nativeEntryDetailsResponse(null, close: true);
     var close = false;
+    bool? actionSucceeded;
 
     try {
       switch (action) {
@@ -484,35 +496,27 @@ class _AppShellState extends ConsumerState<AppShell> {
             'Payment added',
             type: AppToastType.success,
           );
+          actionSucceeded = true;
         case 'deletePayment':
           if (paymentId == null ||
-              paymentId < 0 ||
-              paymentId >= entry.payments.length) {
-            break;
+              !removeNativePaymentAtIndex(entry, paymentId)) {
+            return _nativeEntryDetailsResponse(
+              entry,
+              actionSucceeded: false,
+            );
           }
-          final payment = entry.payments[paymentId];
-          final deleted = await showConfirmationDialog(
-            context,
-            title: 'Delete Payment?',
-            message: 'Are you sure you want to delete this payment?',
-            confirmLabel: 'Delete',
-            destructive: true,
+          await repository.save(entry);
+          await appToastService.show(
+            'Payment deleted',
+            type: AppToastType.success,
           );
-          if (deleted) {
-            entry.payments = List.from(entry.payments)..remove(payment);
-            entry.updatedAt = DateTime.now();
-            if (entry.remainingAmount > 0 &&
-                entry.status == EntryStatus.completed) {
-              entry.status = EntryStatus.active;
-            }
-            await repository.save(entry);
-          }
+          actionSucceeded = true;
       }
       entry = await repository.getById(entry.id);
       return _nativeEntryDetailsResponse(
         entry,
         close: close,
-        actionSucceeded: action == 'addPayment' ? true : null,
+        actionSucceeded: actionSucceeded,
       );
     } catch (_) {
       await appToastService.show(
@@ -521,7 +525,9 @@ class _AppShellState extends ConsumerState<AppShell> {
       );
       return _nativeEntryDetailsResponse(
         entry,
-        actionSucceeded: action == 'addPayment' ? false : null,
+        actionSucceeded: action == 'addPayment' || action == 'deletePayment'
+            ? false
+            : null,
       );
     }
   }

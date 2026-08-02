@@ -79,6 +79,7 @@ final class NativeSheetCoordinator: NSObject, UIAdaptivePresentationControllerDe
   @discardableResult
   func presentNativeEntryEdit(
     snapshot: NativeEntryDetailsSnapshot,
+    onSaveSucceeded: @escaping () -> Void,
     onDismiss: @escaping () -> Void
   ) -> Bool {
     guard let presenter = topViewController(),
@@ -99,6 +100,7 @@ final class NativeSheetCoordinator: NSObject, UIAdaptivePresentationControllerDe
       initialValues: initialValues,
       from: presenter,
       messenger: binaryMessenger,
+      onSaveSucceeded: onSaveSucceeded,
       onDismiss: onDismiss
     )
   }

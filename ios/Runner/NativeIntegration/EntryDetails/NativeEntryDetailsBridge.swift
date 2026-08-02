@@ -5,6 +5,7 @@ final class NativeEntryDetailsBridge {
   private let channel: FlutterMethodChannel
   private var actionInFlight = false
   private var currentID: String?
+  var currentEntryID: String? { currentID }
   var onRequestClose: (() -> Void)?
   var onActionFinished: ((String, Bool) -> Void)?
 

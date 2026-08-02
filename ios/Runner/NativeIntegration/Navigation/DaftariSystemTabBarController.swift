@@ -92,7 +92,9 @@ final class DaftariSystemTabBarController: NSObject, UITabBarControllerDelegate 
 
     controller.delegate = self
     host.onSearchBegan = { [weak self] in
-      self?.setSearchActive(true)
+      guard let self else { return }
+      self.enterSearchInteractionMode(source: "willPresent")
+      self.setSearchActive(true)
     }
     host.onSearchDismissalBegan = { [weak self] in
       self?.setSearchActive(false)
@@ -128,7 +130,7 @@ final class DaftariSystemTabBarController: NSObject, UITabBarControllerDelegate 
     // consume the next real Search callback after the controller is reused.
     pendingProgrammaticTabIndex = nil
     searchHost.prepareForActivation()
-    viewController.interactionMode = .searchFullScreen
+    enterSearchInteractionMode(source: "programmatic")
     searchActivationInProgress = true
     onSearchActivated()
     viewController.selectedTab = searchTab
@@ -148,7 +150,23 @@ final class DaftariSystemTabBarController: NSObject, UITabBarControllerDelegate 
   }
 
   func restoreContentInteraction() {
-    viewController.interactionMode = .contentTabs
+    setInteractionMode(.contentTabs, source: "didDismiss")
+  }
+
+  private func enterSearchInteractionMode(source: String) {
+    setInteractionMode(.searchFullScreen, source: source)
+  }
+
+  private func setInteractionMode(
+    _ mode: DaftariTabBarInteractionMode,
+    source: String
+  ) {
+    guard viewController.interactionMode != mode else { return }
+    viewController.interactionMode = mode
+#if DEBUG
+    let name = mode == .searchFullScreen ? "searchFullScreen" : "contentTabs"
+    print("Search interaction → \(name), source=\(source)")
+#endif
   }
 
   func tabBarController(
@@ -159,6 +177,9 @@ final class DaftariSystemTabBarController: NSObject, UITabBarControllerDelegate 
     if previousTab?.identifier == searchTab.identifier,
        selectedTab.identifier != searchTab.identifier {
       searchHost.endSearchEditing()
+    }
+    if selectedTab.identifier == searchTab.identifier {
+      enterSearchInteractionMode(source: "manualTab")
     }
     guard let index = tabsByIdentifier[selectedTab.identifier] else { return }
     if pendingProgrammaticTabIndex == index {
@@ -222,7 +243,7 @@ final class DaftariPassthroughTabBarController: UITabBarController {
 }
 
 @available(iOS 26.0, *)
-enum DaftariTabBarInteractionMode {
+enum DaftariTabBarInteractionMode: Equatable {
   case contentTabs
   case searchFullScreen
 }
