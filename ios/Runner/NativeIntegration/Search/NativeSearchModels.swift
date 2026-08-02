@@ -12,7 +12,7 @@ struct NativeSearchResult: Identifiable, Equatable {
     switch type {
     case "owedToMe": return "To Me"
     case "owedByMe": return "I Owe"
-    default: return "Notes"
+    default: return ""
     }
   }
 
@@ -20,7 +20,7 @@ struct NativeSearchResult: Identifiable, Equatable {
     switch type {
     case "owedToMe": return "blue"
     case "owedByMe": return "orange"
-    default: return "purple"
+    default: return "clear"
     }
   }
 
@@ -28,7 +28,7 @@ struct NativeSearchResult: Identifiable, Equatable {
     switch type {
     case "owedToMe": return "arrow.down.left"
     case "owedByMe": return "arrow.up.right"
-    default: return "note.text"
+    default: return ""
     }
   }
 }

@@ -53,7 +53,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 onChanged: _onQueryChanged,
                 textInputAction: TextInputAction.search,
                 decoration: InputDecoration(
-                  hintText: 'Search titles and notes',
+                  hintText: 'Search debts',
                   prefixIcon: const Icon(Icons.search_rounded),
                   suffixIcon: value.text.isEmpty
                       ? null
@@ -90,7 +90,7 @@ class SearchResultsBody extends ConsumerWidget {
       return const EmptyState(
         icon: Icons.manage_search_rounded,
         title: 'Search your debts',
-        message: 'Find titles and notes across your owed items.',
+        message: 'Search debt titles and descriptions.',
       );
     }
 
@@ -110,7 +110,7 @@ class SearchResultsBody extends ConsumerWidget {
             child: EmptyState(
               icon: Icons.search_off_rounded,
               title: 'No results found',
-              message: 'Try a different title or note keyword.',
+              message: 'Try a different title or description.',
             ),
           );
         }

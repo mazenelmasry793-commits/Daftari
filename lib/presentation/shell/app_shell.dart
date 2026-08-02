@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:debt_tracker/core/platform/ios_navigation_channel.dart';
 import 'package:debt_tracker/core/platform/native_dashboard_channel.dart';
+import 'package:debt_tracker/core/platform/native_entry_type.dart';
 import 'package:debt_tracker/core/platform/native_entry_details_channel.dart';
 import 'package:debt_tracker/core/platform/app_toast_service.dart';
 import 'package:debt_tracker/core/widgets/confirm_dialog.dart';
@@ -198,7 +199,7 @@ class _AppShellState extends ConsumerState<AppShell> {
           {
             'id': entry.id.toString(),
             'title': entry.title,
-            'type': entry.type.dbValue,
+            'type': entryTypeToNativeWireValue(entry.type),
             'dateText': AppFormatters.date.format(
               entry.debtDate ?? entry.createdAt,
             ),
@@ -359,7 +360,7 @@ class _AppShellState extends ConsumerState<AppShell> {
           {
             'id': entry.id.toString(),
             'title': entry.title,
-            'type': entry.type.dbValue,
+            'type': entryTypeToNativeWireValue(entry.type),
             'dateText': AppFormatters.date.format(
               entry.debtDate ?? entry.createdAt,
             ),
@@ -545,7 +546,7 @@ class _AppShellState extends ConsumerState<AppShell> {
       'entry': {
         'id': entry.id.toString(),
         'title': entry.title,
-        'type': entry.type.name,
+        'type': entryTypeToNativeWireValue(entry.type),
         'status': entry.isDeleted
             ? 'deleted'
             : entry.status == EntryStatus.completed
@@ -581,7 +582,7 @@ class _AppShellState extends ConsumerState<AppShell> {
     if (Platform.isIOS && entry == null) {
       unawaited(
         nativeSheetsChannel.showNativeEntryForm(
-          type: (initialType ?? EntryType.owedToMe).name,
+          type: entryTypeToNativeWireValue(initialType ?? EntryType.owedToMe),
         ),
       );
       return;
@@ -717,7 +718,7 @@ class _AppShellState extends ConsumerState<AppShell> {
   }
 
   void _selectTab(int index) {
-    if (index == 4) {
+    if (index == 3) {
       _enterSearch();
       return;
     }

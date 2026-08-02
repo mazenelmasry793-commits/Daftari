@@ -18,11 +18,11 @@ final class NativeSearchBarView: UIView, UISearchBarDelegate {
     searchBar.translatesAutoresizingMaskIntoConstraints = false
     searchBar.delegate = self
     searchBar.searchBarStyle = .minimal
-    searchBar.placeholder = "Search titles and notes"
+    searchBar.placeholder = "Search debts"
     // The separate circular X button owns dismissal in the bottom row.
     searchBar.showsCancelButton = false
     searchBar.accessibilityLabel = "Search"
-    searchBar.searchTextField.accessibilityLabel = "Search titles and notes"
+    searchBar.searchTextField.accessibilityLabel = "Search debts"
     addSubview(searchBar)
     NSLayoutConstraint.activate([
       searchBar.leadingAnchor.constraint(equalTo: leadingAnchor),

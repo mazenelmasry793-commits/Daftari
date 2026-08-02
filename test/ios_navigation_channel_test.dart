@@ -50,10 +50,10 @@ void main() {
     navigation.onTabSelected = (index) => selectedIndex = index;
 
     await navigation.handleNativeCall(
-      const MethodCall('nativeTabSelected', {'index': 4}),
+      const MethodCall('nativeTabSelected', {'index': 3}),
     );
 
-    expect(selectedIndex, 4);
+    expect(selectedIndex, 3);
   });
 
   test('native search query and dismissal callbacks reach Flutter', () async {

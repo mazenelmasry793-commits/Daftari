@@ -134,7 +134,7 @@ private struct NativeDashboardSummaryCard: View {
         .lineLimit(1)
       Divider()
         .overlay(.white.opacity(0.42))
-      Label("\(entryCount) \(entryCount == 1 ? "entry" : "entries")", systemImage: "note.text")
+      Label("\(entryCount) \(entryCount == 1 ? "entry" : "entries")", systemImage: "list.bullet.rectangle")
         .font(.subheadline)
         .foregroundStyle(.white.opacity(0.94))
     }
@@ -170,7 +170,7 @@ private struct NativeDashboardEntryRow: View {
     switch entry.type {
     case "owedToMe": return .blue
     case "owedByMe": return .orange
-    default: return .indigo
+    default: return .clear
     }
   }
 

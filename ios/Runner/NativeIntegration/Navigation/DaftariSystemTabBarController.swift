@@ -52,7 +52,6 @@ final class DaftariSystemTabBarController: NSObject, UITabBarControllerDelegate 
       ("Home", "square.grid.2x2.fill", "home"),
       ("To Me", "arrow.down.left.circle", "owed-to-me"),
       ("I Owe", "arrow.up.right.circle", "owed-by-me"),
-      ("Notes", "note.text", "notes"),
     ]
     let normalTabObjects = normalTabs.map { title, symbol, identifier in
       UITab(

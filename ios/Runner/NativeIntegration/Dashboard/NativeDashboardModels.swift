@@ -1,5 +1,10 @@
 import Foundation
 
+enum NativeDebtType: String {
+  case owedToMe
+  case owedByMe
+}
+
 struct NativeDashboardEntry: Identifiable, Equatable {
   let id: String
   let title: String
@@ -12,7 +17,7 @@ struct NativeDashboardEntry: Identifiable, Equatable {
     switch type {
     case "owedToMe": return "To Me"
     case "owedByMe": return "I Owe"
-    default: return "Note"
+    default: return ""
     }
   }
 
@@ -20,7 +25,7 @@ struct NativeDashboardEntry: Identifiable, Equatable {
     switch type {
     case "owedToMe": return "arrow.down.left"
     case "owedByMe": return "arrow.up.right"
-    default: return "note.text"
+    default: return ""
     }
   }
 
@@ -28,7 +33,7 @@ struct NativeDashboardEntry: Identifiable, Equatable {
     switch type {
     case "owedToMe": return .blue
     case "owedByMe": return .orange
-    default: return .indigo
+    default: return .clear
     }
   }
 }
@@ -37,6 +42,7 @@ enum ColorValue {
   case blue
   case orange
   case indigo
+  case clear
 }
 
 struct NativeDashboardSnapshot: Equatable {

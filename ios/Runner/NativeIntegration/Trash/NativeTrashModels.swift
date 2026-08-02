@@ -11,7 +11,7 @@ struct NativeTrashEntry: Identifiable, Equatable {
     switch type {
     case "owedToMe": return "Owed To Me"
     case "owedByMe": return "I Owe"
-    default: return "Note"
+    default: return ""
     }
   }
 
@@ -19,7 +19,7 @@ struct NativeTrashEntry: Identifiable, Equatable {
     switch type {
     case "owedToMe": return "arrow.down.left"
     case "owedByMe": return "arrow.up.right"
-    default: return "note.text"
+    default: return ""
     }
   }
 }

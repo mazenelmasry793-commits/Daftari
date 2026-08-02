@@ -21,6 +21,7 @@ final class NativeSearchStore: ObservableObject {
       guard let id = raw["id"] as? String,
             let title = raw["title"] as? String,
             let type = raw["type"] as? String,
+            NativeDebtType(rawValue: type) != nil,
             let dateText = raw["dateText"] as? String else { return nil }
       return NativeSearchResult(
         id: id,

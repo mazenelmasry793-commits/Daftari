@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:debt_tracker/core/utils/formatters.dart';
+import 'package:debt_tracker/core/platform/native_entry_type.dart';
 import 'package:debt_tracker/data/models/entry.dart';
 import 'package:debt_tracker/presentation/providers/app_providers.dart';
 import 'package:flutter/services.dart';
@@ -77,7 +78,7 @@ class NativeDashboardChannel {
           {
             'id': entry.id.toString(),
             'title': entry.title,
-            'type': entry.type.dbValue,
+            'type': entryTypeToNativeWireValue(entry.type),
             'amountMinor': (entry.remainingAmount * 100).round(),
             'amountText': AppFormatters.money.format(entry.remainingAmount),
             'previewText': '',
@@ -93,7 +94,7 @@ class NativeDashboardChannel {
           {
             'id': entry.id.toString(),
             'title': entry.title,
-            'type': entry.type.dbValue,
+            'type': entryTypeToNativeWireValue(entry.type),
             'amountText': AppFormatters.money.format(entry.remainingAmount),
             'previewText': '',
             'updatedAtIso8601': entry.updatedAt.toIso8601String(),

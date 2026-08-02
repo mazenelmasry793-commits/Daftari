@@ -11,14 +11,14 @@ struct NativeSearchView: View {
         ContentUnavailableView(
           "Search Daftari",
           systemImage: "magnifyingglass",
-          description: Text("Search titles and notes across all entries.")
+          description: Text("Search debt titles and descriptions.")
         )
         .offset(y: -24)
       } else if store.results.isEmpty {
         ContentUnavailableView(
           "No Results",
           systemImage: "magnifyingglass",
-          description: Text("Try another title or note.")
+          description: Text("Try another title or description.")
         )
         .offset(y: -24)
       } else {
@@ -89,7 +89,7 @@ struct NativeSearchView: View {
     switch name {
     case "blue": return .blue
     case "orange": return .orange
-    default: return .purple
+    default: return .clear
     }
   }
 }

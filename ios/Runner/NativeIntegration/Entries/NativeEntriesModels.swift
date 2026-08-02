@@ -14,7 +14,7 @@ struct NativeEntryListItem: Identifiable, Equatable {
     switch type {
     case "owedToMe": return "arrow.down.left"
     case "owedByMe": return "arrow.up.right"
-    default: return "arrow.down.left"
+    default: return ""
     }
   }
 }

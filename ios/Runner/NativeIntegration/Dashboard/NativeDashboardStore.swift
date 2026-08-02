@@ -26,6 +26,7 @@ final class NativeDashboardStore: ObservableObject {
       guard let id = raw["id"] as? String,
             let title = raw["title"] as? String,
             let type = raw["type"] as? String,
+            NativeDebtType(rawValue: type) != nil,
             let amountText = raw["amountText"] as? String,
             let dateText = raw["dateText"] as? String else {
         return nil
