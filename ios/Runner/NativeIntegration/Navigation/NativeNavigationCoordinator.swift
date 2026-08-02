@@ -199,9 +199,6 @@ final class NativeNavigationCoordinator {
       let entryDetailsBridge = NativeEntryDetailsBridge(
         binaryMessenger: rootViewController.binaryMessenger
       )
-      entryDetailsBridge.onActionStarted = { [weak self] _, _ in
-        self?.prepareNativeDetailsAction()
-      }
       entryDetailsBridge.onActionFinished = { [weak self] id, close in
         self?.finishNativeDetailsAction(id: id, close: close)
       }
@@ -394,14 +391,6 @@ final class NativeNavigationCoordinator {
   }
 
   @available(iOS 26.0, *)
-  private func prepareNativeDetailsAction() {
-    guard nativeDetailVisible else { return }
-    nativeDetailVisible = false
-    nativeEntryDetailsHost?.view.isHidden = true
-    updateNativeSurfaceVisibility(animated: true)
-  }
-
-  @available(iOS 26.0, *)
   private func finishNativeDetailsAction(id: String, close: Bool) {
     guard !close else {
       navigationVisible = true
@@ -420,9 +409,6 @@ final class NativeNavigationCoordinator {
   @available(iOS 26.0, *)
   private func openNativeEdit(snapshot: NativeEntryDetailsSnapshot) {
     guard nativeDetailVisible else { return }
-    nativeDetailVisible = false
-    nativeEntryDetailsHost?.view.isHidden = true
-    updateNativeSurfaceVisibility(animated: true)
     let presented = sheetCoordinator.presentNativeEntryEdit(snapshot: snapshot) { [weak self] in
       self?.finishNativeDetailsAction(id: snapshot.id, close: false)
     }

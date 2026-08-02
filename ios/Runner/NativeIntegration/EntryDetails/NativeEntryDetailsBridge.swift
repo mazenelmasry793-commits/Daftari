@@ -6,7 +6,6 @@ final class NativeEntryDetailsBridge {
   private var actionInFlight = false
   private var currentID: String?
   var onRequestClose: (() -> Void)?
-  var onActionStarted: ((NativeEntryDetailsAction, String) -> Void)?
   var onActionFinished: ((String, Bool) -> Void)?
 
   init(binaryMessenger: FlutterBinaryMessenger) {
@@ -47,7 +46,6 @@ final class NativeEntryDetailsBridge {
   ) {
     guard !actionInFlight else { return }
     actionInFlight = true
-    onActionStarted?(action, id)
     var arguments: [String: Any] = ["id": id, "action": action.rawValue]
     if let paymentID { arguments["paymentID"] = paymentID }
     channel.invokeMethod(
