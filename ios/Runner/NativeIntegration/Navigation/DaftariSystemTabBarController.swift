@@ -24,6 +24,7 @@ final class DaftariSystemTabBarController: NSObject, UITabBarControllerDelegate 
   private var tabsByIdentifier: [String: Int] = [:]
   private var pendingProgrammaticTabIndex: Int?
   private var searchActivationInProgress = false
+  private var pendingSearchResult: (id: String, type: String)?
 
   init(
     onTabSelected: @escaping (Int) -> Void,
@@ -41,7 +42,7 @@ final class DaftariSystemTabBarController: NSObject, UITabBarControllerDelegate 
     let host = DaftariSearchHostViewController(
       onQueryChanged: onSearchQueryChanged,
       onDismissed: onSearchDismissed,
-      onResultSelected: onSearchResultSelected
+      onResultSelected: { _, _ in }
     )
     self.searchHost = host
     let searchNavigationController = UINavigationController(rootViewController: host)
@@ -72,7 +73,7 @@ final class DaftariSystemTabBarController: NSObject, UITabBarControllerDelegate 
     }
 
     let controller = DaftariPassthroughTabBarController(tabs: allTabs)
-    controller.mode = .tabBar
+    controller.interactionMode = .contentTabs
     controller.selectedTab = allTabs[0]
     if #available(iOS 26.0, *) {
       controller.tabBarMinimizeBehavior = .never
@@ -81,6 +82,13 @@ final class DaftariSystemTabBarController: NSObject, UITabBarControllerDelegate 
     controller.view.isOpaque = false
     self.viewController = controller
     super.init()
+
+    host.onResultSelected = { [weak self] id, type in
+      guard let self, self.pendingSearchResult == nil else { return }
+      self.pendingSearchResult = (id, type)
+      onSearchResultSelected(id, type)
+      self.searchHost.requestDismissal()
+    }
 
     controller.delegate = self
     host.onSearchBegan = { [weak self] in
@@ -120,6 +128,7 @@ final class DaftariSystemTabBarController: NSObject, UITabBarControllerDelegate 
     // consume the next real Search callback after the controller is reused.
     pendingProgrammaticTabIndex = nil
     searchHost.prepareForActivation()
+    viewController.interactionMode = .searchFullScreen
     searchActivationInProgress = true
     onSearchActivated()
     viewController.selectedTab = searchTab
@@ -131,6 +140,15 @@ final class DaftariSystemTabBarController: NSObject, UITabBarControllerDelegate 
 
   func applySearchResults(payload: Any?) {
     searchHost.applyResults(payload: payload)
+  }
+
+  func consumePendingSearchResult() -> (id: String, type: String)? {
+    defer { pendingSearchResult = nil }
+    return pendingSearchResult
+  }
+
+  func restoreContentInteraction() {
+    viewController.interactionMode = .contentTabs
   }
 
   func tabBarController(
@@ -172,6 +190,12 @@ final class DaftariSystemTabBarController: NSObject, UITabBarControllerDelegate 
 
 @available(iOS 26.0, *)
 final class DaftariPassthroughTabBarController: UITabBarController {
+  var interactionMode: DaftariTabBarInteractionMode = .contentTabs {
+    didSet {
+      (view as? DaftariTabBarPassthroughView)?.interactionMode = interactionMode
+    }
+  }
+
   override func loadView() {
     // Keep UIKit's internal UITabBarController hierarchy intact. Replacing
     // its root view directly leaves the system tab bar's private container
@@ -179,6 +203,7 @@ final class DaftariPassthroughTabBarController: UITabBarController {
     super.loadView()
     guard let systemView = view else { return }
     let passthroughView = DaftariTabBarPassthroughView(frame: systemView.bounds)
+    passthroughView.interactionMode = interactionMode
     passthroughView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
     passthroughView.backgroundColor = .clear
     passthroughView.isOpaque = false
@@ -197,10 +222,20 @@ final class DaftariPassthroughTabBarController: UITabBarController {
 }
 
 @available(iOS 26.0, *)
+enum DaftariTabBarInteractionMode {
+  case contentTabs
+  case searchFullScreen
+}
+
+@available(iOS 26.0, *)
 private final class DaftariTabBarPassthroughView: UIView {
   weak var interactiveView: UIView?
+  var interactionMode: DaftariTabBarInteractionMode = .contentTabs
 
   override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+    if interactionMode == .searchFullScreen {
+      return super.hitTest(point, with: event)
+    }
     guard !isHidden, alpha > 0.01, isUserInteractionEnabled,
           let interactiveView,
           !interactiveView.isHidden,

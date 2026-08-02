@@ -10,8 +10,9 @@ final class DaftariSearchHostViewController: UIViewController, UISearchResultsUp
   private let onDismissed: () -> Void
   private let searchController = UISearchController(searchResultsController: nil)
   private let store = NativeSearchStore()
-  private let onResultSelected: (String, String) -> Void
+  var onResultSelected: (String, String) -> Void
   private var hostingController: UIHostingController<NativeSearchView>?
+  private var dismissalRequestInProgress = false
 
   init(
     onQueryChanged: @escaping (String) -> Void,
@@ -74,7 +75,20 @@ final class DaftariSearchHostViewController: UIViewController, UISearchResultsUp
     view.window?.endEditing(true)
   }
 
+  func requestDismissal() {
+    guard !dismissalRequestInProgress else { return }
+    dismissalRequestInProgress = true
+    endSearchEditing()
+    guard searchController.isActive else {
+      dismissalRequestInProgress = false
+      onDismissed()
+      return
+    }
+    searchController.isActive = false
+  }
+
   func prepareForActivation() {
+    dismissalRequestInProgress = false
     endSearchEditing()
     searchController.searchBar.text = ""
     store.setQuery("")
@@ -87,6 +101,7 @@ final class DaftariSearchHostViewController: UIViewController, UISearchResultsUp
   }
 
   func didDismissSearchController(_ searchController: UISearchController) {
+    dismissalRequestInProgress = false
     endSearchEditing()
     searchController.searchBar.text = ""
     onQueryChanged("")

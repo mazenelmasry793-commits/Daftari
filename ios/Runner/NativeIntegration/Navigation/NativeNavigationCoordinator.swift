@@ -26,6 +26,7 @@ final class NativeNavigationCoordinator {
   }
   private var searchState: SearchLifecycleState = .inactive
   private var lastContentTabIndex = 0
+  private var pendingSearchResultID: String?
   private var searchModeActive: Bool { searchState != .inactive }
   private var navigationVisible = true
   private var flutterDetailVisible = false
@@ -158,9 +159,7 @@ final class NativeNavigationCoordinator {
           self?.applyNativeSearchModeChange(active)
         },
         onSearchResultSelected: { [weak self] id, _ in
-          guard let self else { return }
-          self.searchState = .inactive
-          self.openNativeDetails(id: id)
+          self?.pendingSearchResultID = id
         }
       )
       rootViewController.addChild(systemTabs.viewController)
@@ -551,7 +550,16 @@ final class NativeNavigationCoordinator {
       )
       self.searchState = .inactive
       self.updateNativeSurfaceVisibility(animated: false)
+      let pendingResultID = self.pendingSearchResultID
+      self.pendingSearchResultID = nil
+      if let systemTabs = self.systemTabBarController as? DaftariSystemTabBarController {
+        _ = systemTabs.consumePendingSearchResult()
+        systemTabs.restoreContentInteraction()
+      }
       channel?.invokeMethod("nativeSearchDismissed", arguments: nil)
+      if let pendingResultID {
+        self.openNativeDetails(id: pendingResultID)
+      }
     }
   }
 
