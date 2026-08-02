@@ -38,12 +38,7 @@ struct NativeEntryDetailsView: View {
         ToolbarItem(placement: .topBarLeading) {
           Button(action: onBack) {
             Image(systemName: "chevron.left")
-              .frame(width: 56, height: 56)
-              .background(.thinMaterial, in: Circle())
-              .clipShape(Circle())
-              .contentShape(Circle())
           }
-          .buttonStyle(.plain)
           .accessibilityLabel("Back")
         }
         ToolbarItem(placement: .principal) {
